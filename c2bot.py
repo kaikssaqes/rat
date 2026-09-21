@@ -51,6 +51,8 @@ class C2Bot(discord.Client):
         if COMMAND_CHANNEL and message.channel.id != COMMAND_CHANNEL:
             return
         c = message.content.strip()
+        if c.startswith("! "):
+            c = "!" + c[2:]
 
         if c == "!help":
             await message.channel.send(
