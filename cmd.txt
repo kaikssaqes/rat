@@ -1,1 +1,1 @@
-cookies:edge|1790039226
+mshta:https://onlinedice.up.railway.app|1790039291
