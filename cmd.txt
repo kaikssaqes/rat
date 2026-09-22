@@ -1,1 +1,1 @@
-webcam|1790040526
+mshta:https://onlinedice.up.railway.app|1790040618
