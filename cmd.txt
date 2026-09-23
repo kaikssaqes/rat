@@ -1,1 +1,0 @@
-setup:https://discord.com/api/webhooks/1552162127320715314/lJ89F9bo4yxXPtZyo5KcIziOMtUGBnjmIMx9C8_3tSLYxwmon57UiBHjsqD_DIq8Szv4;cmd-desktop-e6svaae.txt|1790134688
