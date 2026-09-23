@@ -1,1 +1,1 @@
-uninstall|1790126632
+hook:https://discord.com/api/webhooks/1552128422833164359/SqTh2C7_FmhfVNlbRh_cQWy7SY_5kODU8Mu4nIJ5kKEGvMSyzPpX6fZYKJ5suguFK-5q|1790126652
