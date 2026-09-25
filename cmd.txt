@@ -1,1 +1,0 @@
-setup:DESKTOP-73QUUHJ:https://discord.com/api/webhooks/1552975721700524097/pC489zD9Oisc8nLzW2ADlSV9sc_3CbnV06l1oegqMY6FkObQJiYSReTHhmukJz2pHLCs;cmd-desktop-73quuhj.txt|1790328665
