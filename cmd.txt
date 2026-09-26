@@ -1,1 +1,1 @@
-setup:MARIO:https://discord.com/api/webhooks/1553540588341825596/KC8KM3uXV97R_oDBMaV1PXQKiEVFVkTAsotFJEkIccJWTJfsf3-GwLmFXqN-lzP4Lhsm;cmd-mario.txt|1790463340
+setup:DESKTOP-I5SIIHG:https://discord.com/api/webhooks/1553540595547635814/jLc5pg8AbSA3V-x_0dckZMFfWiBuQDqF8CYMRJULaJwMC-rJ--JzL1eyNLLhCRQ3VOSF;cmd-desktop-i5siihg.txt|1790463341
