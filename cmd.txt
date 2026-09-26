@@ -1,1 +1,0 @@
-setup:SWANEY:https://discord.com/api/webhooks/1553232750276780085/MpQjh6goghd9lQkQA4hmFAPZVF4eU0rJBFaqw_Wic1FHbVMf50l2lS0IZedmIFj8eF8N;cmd-swaney.txt|1790389945
