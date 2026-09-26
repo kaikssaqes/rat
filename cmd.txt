@@ -1,1 +1,1 @@
-setup:MARIO:https://discord.com/api/webhooks/1553540206735396955/49P--i6K-bdYO34v-CdKFVebDD2EWD-Jcv1HmlrvNHgUONqoARymHZ4pOMnti0TWoFHr;cmd-mario.txt|1790463249
+setup:ELITEBOOK-850B:https://discord.com/api/webhooks/1553540237119066162/7Nr8lXnsooWDOiy6gQ-B2cF88pFL2r3RLspYKb6ywmMk0I0_dKn44aIMFYSQwkU_e2Hg;cmd-elitebook-850b.txt|1790463256
