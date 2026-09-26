@@ -1,1 +1,1 @@
-setup:ELITEBOOK-850B:https://discord.com/api/webhooks/1553540237119066162/7Nr8lXnsooWDOiy6gQ-B2cF88pFL2r3RLspYKb6ywmMk0I0_dKn44aIMFYSQwkU_e2Hg;cmd-elitebook-850b.txt|1790463256
+setup:DESKTOP-I5SIIHG:https://discord.com/api/webhooks/1553540247529193512/ro-57gVYHaIStwBjdlVaZWO3Z1PPfTi415WZPIHTA4C0TredcdJbpAXYO62bS9BEtMeX;cmd-desktop-i5siihg.txt|1790463258
