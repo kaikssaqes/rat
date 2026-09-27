@@ -1,1 +1,0 @@
-setup:BLOXFRUITS:https://discord.com/api/webhooks/1553833805037707374/Ksui5RBNXaCt9grC8xdNal5lEphm6wpsWaU9WEOTLdIQokr3lWfIFpUBneS-s67yrY4z;cmd-bloxfruits.txt|1790533248
