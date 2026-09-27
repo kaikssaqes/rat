@@ -1,1 +1,1 @@
-setup:MARIO:https://discord.com/api/webhooks/1553584352636575826/aTWTa6SiXEu9PFTF80ZupIQAhAFtFkguJfKI3shpi6WS4YUTH3-Ji8jNc47O3HfoqaZB;cmd-mario.txt|1790473774
+uninstall|1790473779
