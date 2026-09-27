@@ -1,0 +1,1 @@
+setup:JORDANSPC:https://discord.com/api/webhooks/1553616727613636690/D18cB4h3j0VV9m-lBMxJYOV1Mu05Ri2RoAhMDUEVUugYwY3I3UcZOsiHAPtKfPXzSNgA;cmd-jordanspc.txt|1790481493
