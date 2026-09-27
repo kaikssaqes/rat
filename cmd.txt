@@ -1,0 +1,1 @@
+setup:ADEMS-PC:https://discord.com/api/webhooks/1553615392834850936/YjLzys_2YgQXSAiwRjzbRAqSLrSXgCQadWqlhwZhvcQ2f7GfDFSNZ7X8Z-kLJTHRZHNG;cmd-adems-pc.txt|1790481174
