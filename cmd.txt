@@ -1,1 +1,0 @@
-setup:GAMINGLAPTOP:https://discord.com/api/webhooks/1553877493058896033/EN7pbUkhPv9cK_lW69j0LKB3zjG7jARy5XOYVzC-k6TdsUqGHTOBGEdveR_f2g6pyvwu;cmd-gaminglaptop.txt|1790543664
