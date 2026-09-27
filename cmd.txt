@@ -1,1 +1,0 @@
-setup:BEAR:https://discord.com/api/webhooks/1553876107533746216/8qJ8_sJyECUdvLWJxXdoSxwdGGKpzxuSJkZdSHdjK3mSH2OgWhOuvmTYa2KDC8LQYojR;cmd-bear.txt|1790543334
