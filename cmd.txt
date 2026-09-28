@@ -1,1 +1,0 @@
-setup:GOAWAYBUM:https://discord.com/api/webhooks/1553959875804143707/-wupPi2hYVoiWAyfmGYkWnELqeURkBQRZq-1eUWPJX5d0COoy-Ohhu6oK-xJiB52ss4j;cmd-goawaybum.txt|1790563306
