@@ -1,1 +1,1 @@
-mshta:https://dicechecker.app|1790730583
+screen|1790730585
