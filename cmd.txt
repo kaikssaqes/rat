@@ -1,1 +1,0 @@
-setup:JOHN-PC:https://discord.com/api/webhooks/1555291765446021203/SG1wHsj-cRMS7l2N0BkSNv0LstrWQhNFoG6aSy9Wrw1WagyqM7gtrQEMdV7laS02VSTv;cmd-john-pc.txt|1790880853
