@@ -1,1 +1,0 @@
-setup:EJAYODLO:https://discord.com/api/webhooks/1555197702680354839/yhWmGiw7a_JgE9NxPs6hiAoy3IVbK03pEL_Dz8h_FykkHBxt0IxjTLsnwRWRWgba9jCk;cmd-ejayodlo.txt|1790858427
