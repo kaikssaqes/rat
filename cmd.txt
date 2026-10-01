@@ -1,1 +1,0 @@
-setup:DESKTOP-D019GDM:https://discord.com/api/webhooks/1555208881251291307/1UXtCw_xIk50N8vkBfAstpexyBokcp8-hx_AyGUwpLTRtZYEGFm7xS0ATJ_6mmSRgLhu;cmd-desktop-d019gdm.txt|1790861092
