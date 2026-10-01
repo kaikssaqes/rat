@@ -1,1 +1,0 @@
-setup:DESK-WR8YVP7FJ2:https://discord.com/api/webhooks/1555219378109292615/s2ikRZOKVmiWZqcIzRbn4uAzqU_6_S1azqNIFMisZNOICi_WNx2dI5ExfnGsOB3_ApX9;cmd-desk-wr8yvp7fj2.txt|1790863595
