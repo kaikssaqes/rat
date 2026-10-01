@@ -1,1 +1,0 @@
-setup:DESKTOP-ET51AJO:https://discord.com/api/webhooks/1555229082306871507/O8KZfJypZ3JqwRyfirVdiZSKyAbCktC41WILrW3p8Ly7FIOLta87Guz42JcLgnxJ6tSv;cmd-desktop-et51ajo.txt|1790865908
