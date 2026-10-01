@@ -1,1 +1,1 @@
-setup:WINDOWS-DREFRJC:https://discord.com/api/webhooks/1555198322996813894/MCGXDYwyPUoP92roKK8bMNT3KjPHuwejs_YSrHebGXB7nHQeXQRyuHzisIeIQf7n1S7S;cmd-windows-drefrjc.txt|1790858575
+setup:WINDOWS-3ONM9M1:https://discord.com/api/webhooks/1555198339694202942/JD-8bH_R_bkFKz5i-qeb8WEJ5Od7JFPbw0HlU7hp25-t59kNIc1m1XMdxOpacMqQyzm9;cmd-windows-3onm9m1.txt|1790858579
