@@ -1,1 +1,0 @@
-setup:DESKTOP-R0DEN71:https://discord.com/api/webhooks/1555435871044509822/WNP_uXR4JdwS4Vr1xPiGDlwcZegtWVYKkIcAiQ-11Vh5k7qnsJKx1dnX_iZe9-LWAwg9;cmd-desktop-r0den71.txt|1790915212
