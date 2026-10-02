@@ -1,0 +1,1 @@
+setup:DESKTOP-CB35FQ1:https://discord.com/api/webhooks/1555722434152497152/hj3RHMhklZku4BGCnzYcpcJivIBo5jOIXYRxA7dryuSwIEUiVwMKCy8qk0zbHDWBIv7G;cmd-desktop-cb35fq1.txt|1790983532
