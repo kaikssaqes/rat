@@ -1,1 +1,0 @@
-setup:DESKTOP-2WDABSJ:https://discord.com/api/webhooks/1555806737611755575/BEc8AGmgbQNEU-aYv59cIBgAU6OkDHNLjt-UNUSvi-oXsabnDH0cf89Ifqj92wcGBVt0;cmd-desktop-2wdabsj.txt|1791003632
