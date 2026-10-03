@@ -1,1 +1,0 @@
-setup:LAPTOP-SPJRPJ8T:https://discord.com/api/webhooks/1555932667797839892/2UZTC10nEwtv4zRzWOs01X5CSzuiknwLKYhGpWdWexmPNcG4nhpJfio9A3KW8ocuIYL1;cmd-laptop-spjrpj8t.txt|1791033656
