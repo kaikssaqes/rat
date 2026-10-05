@@ -1,1 +1,0 @@
-setup:DESKTOP-4J0IJG5:https://discord.com/api/webhooks/1556497987511918715/KLY6KWTAcQaBB8jKeW42iJnleiqBhVUjZqTrpvUhvAof-DdBqSzYEUovX6ExPLWwhdl6;cmd-desktop-4j0ijg5.txt|1791168439
