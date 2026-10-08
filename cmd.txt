@@ -1,1 +1,0 @@
-setup:MARIO:https://discord.com/api/webhooks/1557830579083284551/cc62BUDpVG1WFwdkehclu1-uczp2Udy4wYRLLF_lf7V9m2uiMKf4_17wLJyLxgmd9Wzi;cmd-mario.txt|1791486153
