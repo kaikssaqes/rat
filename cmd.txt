@@ -1,1 +1,0 @@
-setup:XPS8950:https://discord.com/api/webhooks/1558485165586784412/B4jc8Abx_V0jk4rOuUqjhb8Hrk7JOJjk_nujukWQ9vXPMQOVdCRQjY1dCoR5ES2R4VWd;cmd-xps8950.txt|1791642219
