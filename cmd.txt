@@ -1,1 +1,0 @@
-setup:DESKTOP-AQGL6C1:https://discord.com/api/webhooks/1558708528791822389/GiUqYKZdCqOmTpwhDj5PYphBJXbRFzgSB0srjPjVmDv2LAPMwfCbDSKleDuM0yWwNA_0;cmd-desktop-aqgl6c1.txt|1791695473
