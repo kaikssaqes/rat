@@ -1,1 +1,1 @@
-setup:MARIO:https://discord.com/api/webhooks/1559298645084610621/zbNMHfS76VbII2xcjctq7i55j1FmNW45gyuvSI7vao1wV6Sm0Yl6eujK_rEAdq9qlGGV;cmd-mario.txt|1791836167
+setup:OMARSPC:https://discord.com/api/webhooks/1559298661245001920/nLxw4co3_Z3HTOP_leCu3P-91DfFpIdXN2p59uCdVpApIcsqnIw5PSyaXqkC_MudhC8i;cmd-omarspc.txt|1791836171
