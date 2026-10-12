@@ -1,1 +1,0 @@
-setup:DESKTOP-ZCZGHFW:https://discord.com/api/webhooks/1559293425642242251/Vlz0VVmtnhcS501TbiFeNH_804ukrWfqEnMaetiHF_H9a5vO7QikL0QIvAGTEkUwm0IG;cmd-desktop-zczghfw.txt|1791834923
