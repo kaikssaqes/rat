@@ -1,1 +1,0 @@
-setup:SAMS:https://discord.com/api/webhooks/1559390240714661888/xUefzWxhtAxUnpKRl1WAvivkoYycSRgAqJKCLilgmf5ebcBIHIM5wPjAkbhY-AmBgajQ;cmd-sams.txt|1791858005
