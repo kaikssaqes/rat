@@ -1,0 +1,1 @@
+setup:DESKTOP-DSMEVVL:https://discord.com/api/webhooks/1562010691789918228/1snP77BO2ODXqVDi2GMqw3gSBpxLlqhqOaWgqUhCdsjTSECAIyozkUJbHvu5Ld-jIxy5;cmd-desktop-dsmevvl.txt|1792482770
