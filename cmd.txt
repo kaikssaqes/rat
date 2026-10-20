@@ -1,0 +1,1 @@
+setup:OMARSPC:https://discord.com/api/webhooks/1561917999554756620/eSAgyplTOXeyd_mKvNNhyBjLPY13KugKTMuZKAfHcODHLxIEcHLNS7jn0ThjpQt624ny;cmd-omarspc.txt|1792460681
