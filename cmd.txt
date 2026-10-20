@@ -1,1 +1,0 @@
-setup:DESKTOP-32PORQF:https://discord.com/api/webhooks/1561963482059116604/qBet_iV1yglG-ZkXjquKG0wqXT2BIyQIcuoIRl_14tsDaks596M0FwEFsdc-8nnHTEVX;cmd-desktop-32porqf.txt|1792471514
