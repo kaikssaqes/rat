@@ -1,1 +1,0 @@
-setup:DESKTOP-CPUVBMJ:https://discord.com/api/webhooks/1562493243135107163/0m0NmqjsbCX2OCTbJECy6HKlRIJPIZFx3dv7MKrad0tlFasY_S-8_fXGQopXCNqQats5;cmd-desktop-cpuvbmj.txt|1792597819
