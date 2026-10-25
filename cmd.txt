@@ -1,1 +1,0 @@
-setup:KIANSPC:https://discord.com/api/webhooks/1563740705023856680/26rH80FJJ1TEm2cZe5MAaNhl5TrFjfVgQz7ro7-rbd0etaPZ2-Wg8sJLyHZgOOkTx5pr;cmd-kianspc.txt|1792895237
