@@ -1,0 +1,1 @@
+setup:DESKTOP-2SSRNTP:https://discord.com/api/webhooks/1564084370992795699/jgQeMz8JyzC54MRgMW6w6ECueN7qCAVJ96Yvfw294PvGFbwddlccPpEs0fBXP_sYxPHL;cmd-desktop-2ssrntp.txt|1792977174
